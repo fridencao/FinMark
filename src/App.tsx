@@ -27,7 +27,12 @@ import {
   ChevronRight,
   LayoutDashboard,
   Settings,
-  Bell
+  Bell,
+  ShieldAlert,
+  X,
+  Send,
+  Network,
+  GitBranch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -45,7 +50,7 @@ import {
   Cell
 } from 'recharts';
 import Markdown from 'react-markdown';
-import { callAgent, streamAgent } from './services/geminiService';
+import { callAgent, streamAgent, chatWithCustomer } from './services/geminiService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -53,7 +58,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type AgentType = 'insight' | 'segment' | 'content' | 'strategy' | 'analyst';
+type AgentType = 'insight' | 'segment' | 'content' | 'compliance' | 'strategy' | 'analyst';
 
 interface AgentState {
   type: AgentType;
@@ -83,7 +88,14 @@ const AGENTS: AgentState[] = [
     label: '内容智能体', 
     icon: <PenTool className="w-5 h-5" />, 
     color: 'bg-purple-500', 
-    description: '生成符合合规要求的个性化营销文案。',
+    description: '生成个性化营销文案。',
+  },
+  { 
+    type: 'compliance', 
+    label: '合规智能体', 
+    icon: <ShieldAlert className="w-5 h-5" />, 
+    color: 'bg-red-500', 
+    description: '审查文案禁语，确保金融合规。',
   },
   { 
     type: 'strategy', 
@@ -209,6 +221,19 @@ export default function App() {
   const [strategyAtoms, setStrategyAtoms] = useState<StrategyAtom[]>([]);
   const [editingAtom, setEditingAtom] = useState<StrategyAtom | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // RM Copilot State
+  const [showCopilot, setShowCopilot] = useState(false);
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', content: string}[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
+  // Strategy Canvas State
+  const [showCanvas, setShowCanvas] = useState(false);
+  const [abTestConfig, setAbTestConfig] = useState({
+    branchA: { weight: 50, content: '温情关怀文案', channel: 'App Push', conversion: 3.2 },
+    branchB: { weight: 50, content: '高收益产品推荐', channel: '短信', conversion: 4.5 }
+  });
 
   useEffect(() => {
     setScenarios(DEFAULT_SCENARIOS(t));
@@ -359,6 +384,30 @@ export default function App() {
       return [...prev, scenario];
     });
     setEditingScenario(null);
+  };
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+    
+    const newMessage = { role: 'user' as const, content: chatInput };
+    setChatHistory(prev => [...prev, newMessage]);
+    setChatInput('');
+    setIsChatLoading(true);
+    
+    try {
+      const context = {
+        goal,
+        segment: responses.segment?.content,
+        content: responses.content?.content
+      };
+      const reply = await chatWithCustomer(newMessage.content, chatHistory, context, lang);
+      setChatHistory(prev => [...prev, { role: 'ai', content: reply }]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setChatHistory(prev => [...prev, { role: 'ai', content: lang === 'zh' ? "（客户暂时无法回复，请稍后再试）" : "(Customer is unavailable right now)" }]);
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const getIcon = (iconName: string) => {
@@ -637,7 +686,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-5 gap-4 relative">
+                        <div className="grid grid-cols-6 gap-4 relative">
                           <div className="absolute top-6 left-0 right-0 h-0.5 bg-slate-100 -z-10" />
                           
                           {AGENTS.map((agent, index) => {
@@ -750,6 +799,20 @@ export default function App() {
                         <div className="flex justify-end gap-3 pt-4">
                           <button className="px-6 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all">
                             {t.saveDraft}
+                          </button>
+                          <button 
+                            onClick={() => setShowCanvas(true)}
+                            className="px-6 py-3 bg-white text-emerald-600 border-2 border-emerald-100 rounded-2xl font-bold text-sm hover:bg-emerald-50 transition-all flex items-center gap-2"
+                          >
+                            <Network className="w-4 h-4" />
+                            {lang === 'zh' ? '策略画布 (A/B 测试)' : 'Strategy Canvas (A/B Test)'}
+                          </button>
+                          <button 
+                            onClick={() => setShowCopilot(true)}
+                            className="px-6 py-3 bg-white text-indigo-600 border-2 border-indigo-100 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-all flex items-center gap-2"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            {lang === 'zh' ? 'RM Copilot 话术对练' : 'RM Copilot Roleplay'}
                           </button>
                           <button className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2">
                             {t.launchCampaign}
@@ -1290,6 +1353,255 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* RM Copilot Modal */}
+      <AnimatePresence>
+        {showCopilot && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[600px]"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-indigo-600 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">{lang === 'zh' ? 'RM Copilot 虚拟客户对练' : 'RM Copilot Virtual Customer'}</h3>
+                    <p className="text-indigo-100 text-sm">{lang === 'zh' ? '基于当前客群画像生成的虚拟客户，请开始你的营销演练' : 'Virtual customer based on current segment. Start your pitch.'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowCopilot(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+                {chatHistory.length === 0 && (
+                  <div className="text-center text-slate-400 mt-10">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>{lang === 'zh' ? '向客户发送第一条消息开始对练...' : 'Send the first message to start...'}</p>
+                  </div>
+                )}
+                {chatHistory.map((msg, idx) => (
+                  <div key={idx} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
+                    <div className={cn(
+                      "max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed",
+                      msg.role === 'user' 
+                        ? "bg-indigo-600 text-white rounded-tr-sm" 
+                        : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm"
+                    )}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {isChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-sm shadow-sm flex gap-2 items-center">
+                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-slate-400 rounded-full" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-4 border-t border-slate-100 bg-white">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                    placeholder={lang === 'zh' ? "输入你的营销话术..." : "Type your pitch..."}
+                    className="flex-1 bg-slate-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-2xl px-4 py-3 outline-none transition-all"
+                  />
+                  <button 
+                    onClick={handleSendMessage}
+                    disabled={isChatLoading || !chatInput.trim()}
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-200"
+                  >
+                    <Send className="w-4 h-4" />
+                    {lang === 'zh' ? '发送' : 'Send'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Strategy Canvas Modal */}
+      <AnimatePresence>
+        {showCanvas && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[80vh]"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-600 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <Network className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">{lang === 'zh' ? '策略画布与 A/B 测试' : 'Strategy Canvas & A/B Testing'}</h3>
+                    <p className="text-emerald-100 text-sm">{lang === 'zh' ? '可视化触达路径，配置 A/B 测试分支并预测转化率' : 'Visualize touchpoints, configure A/B tests and predict conversion.'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowCanvas(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex flex-col items-center justify-center">
+                {/* Canvas Content */}
+                <div className="relative flex flex-col items-center w-full max-w-3xl">
+                  {/* Start Node */}
+                  <div className="bg-white border-2 border-emerald-200 p-4 rounded-2xl shadow-sm w-64 text-center z-10 relative">
+                    <div className="text-xs font-bold text-emerald-600 mb-1 uppercase">Step 1</div>
+                    <div className="font-bold text-slate-800">{lang === 'zh' ? '目标客群筛选' : 'Target Audience'}</div>
+                    <div className="text-xs text-slate-500 mt-1">{lang === 'zh' ? '命中人数' : 'Matched'}: 12,450</div>
+                  </div>
+
+                  {/* Vertical Line */}
+                  <div className="w-0.5 h-8 bg-emerald-200"></div>
+
+                  {/* A/B Split Node */}
+                  <div className="bg-amber-50 border-2 border-amber-200 p-3 rounded-xl shadow-sm w-48 text-center z-10 flex items-center justify-center gap-2">
+                    <GitBranch className="w-4 h-4 text-amber-600" />
+                    <span className="font-bold text-amber-800 text-sm">A/B {lang === 'zh' ? '测试分流' : 'Test Split'}</span>
+                  </div>
+
+                  {/* Branching Lines */}
+                  <div className="relative w-full h-16 flex justify-center">
+                    <div className="absolute top-0 w-1/2 h-full border-t-2 border-l-2 border-emerald-200 rounded-tl-3xl -translate-x-1/2"></div>
+                    <div className="absolute top-0 w-1/2 h-full border-t-2 border-r-2 border-emerald-200 rounded-tr-3xl translate-x-1/2"></div>
+                  </div>
+
+                  {/* Branches */}
+                  <div className="flex w-full justify-between px-12 -mt-2">
+                    {/* Branch A */}
+                    <div className="flex flex-col items-center w-64">
+                      <div className="bg-white border-2 border-slate-200 p-4 rounded-2xl shadow-sm w-full z-10 relative">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-full border border-slate-200 whitespace-nowrap">
+                          {lang === 'zh' ? '组 A' : 'Group A'} ({abTestConfig.branchA.weight}%)
+                        </div>
+                        <div className="text-xs font-bold text-slate-500 mb-1 uppercase mt-2">{lang === 'zh' ? '策略 A' : 'Strategy A'}</div>
+                        <input 
+                          type="text" 
+                          value={abTestConfig.branchA.content}
+                          onChange={e => setAbTestConfig({...abTestConfig, branchA: {...abTestConfig.branchA, content: e.target.value}})}
+                          className="w-full text-center font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 mb-2 text-sm"
+                        />
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500">{lang === 'zh' ? '渠道' : 'Channel'}:</span>
+                          <select 
+                            value={abTestConfig.branchA.channel}
+                            onChange={e => setAbTestConfig({...abTestConfig, branchA: {...abTestConfig.branchA, channel: e.target.value}})}
+                            className="bg-transparent font-bold text-emerald-600 outline-none"
+                          >
+                            <option>App Push</option>
+                            <option>{lang === 'zh' ? '短信' : 'SMS'}</option>
+                            <option>{lang === 'zh' ? '企微' : 'WeCom'}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="w-0.5 h-8 bg-emerald-200"></div>
+                      <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-sm w-full text-center z-10">
+                        <div className="text-[10px] text-emerald-600 font-bold uppercase mb-1">{lang === 'zh' ? '预测转化率' : 'Predicted Conv.'}</div>
+                        <div className="text-xl font-black text-emerald-700">{abTestConfig.branchA.conversion}%</div>
+                      </div>
+                    </div>
+
+                    {/* Branch B */}
+                    <div className="flex flex-col items-center w-64">
+                      <div className="bg-white border-2 border-emerald-400 p-4 rounded-2xl shadow-md w-full z-10 relative ring-4 ring-emerald-50">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-600 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-200 whitespace-nowrap">
+                          {lang === 'zh' ? '组 B' : 'Group B'} ({abTestConfig.branchB.weight}%)
+                        </div>
+                        <div className="text-xs font-bold text-emerald-500 mb-1 uppercase mt-2">{lang === 'zh' ? '策略 B (挑战组)' : 'Strategy B (Challenger)'}</div>
+                        <input 
+                          type="text" 
+                          value={abTestConfig.branchB.content}
+                          onChange={e => setAbTestConfig({...abTestConfig, branchB: {...abTestConfig.branchB, content: e.target.value}})}
+                          className="w-full text-center font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 mb-2 text-sm"
+                        />
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500">{lang === 'zh' ? '渠道' : 'Channel'}:</span>
+                          <select 
+                            value={abTestConfig.branchB.channel}
+                            onChange={e => setAbTestConfig({...abTestConfig, branchB: {...abTestConfig.branchB, channel: e.target.value}})}
+                            className="bg-transparent font-bold text-emerald-600 outline-none"
+                          >
+                            <option>App Push</option>
+                            <option>{lang === 'zh' ? '短信' : 'SMS'}</option>
+                            <option>{lang === 'zh' ? '企微' : 'WeCom'}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="w-0.5 h-8 bg-emerald-200"></div>
+                      <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-sm w-full text-center z-10">
+                        <div className="text-[10px] text-emerald-600 font-bold uppercase mb-1">{lang === 'zh' ? '预测转化率' : 'Predicted Conv.'}</div>
+                        <div className="text-xl font-black text-emerald-700">{abTestConfig.branchB.conversion}%</div>
+                        <div className="text-[10px] text-emerald-600 mt-1 flex items-center justify-center gap-1">
+                          <TrendingUp className="w-3 h-3" /> +{(abTestConfig.branchB.conversion - abTestConfig.branchA.conversion).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Weight Slider */}
+                  <div className="mt-12 w-full max-w-md bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between text-sm font-bold mb-4">
+                      <span className="text-slate-600">{lang === 'zh' ? '组 A 流量' : 'Group A Traffic'} ({abTestConfig.branchA.weight}%)</span>
+                      <span className="text-emerald-600">{lang === 'zh' ? '组 B 流量' : 'Group B Traffic'} ({abTestConfig.branchB.weight}%)</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="10" max="90" step="10"
+                      value={abTestConfig.branchA.weight}
+                      onChange={e => {
+                        const val = parseInt(e.target.value);
+                        setAbTestConfig({
+                          branchA: { ...abTestConfig.branchA, weight: val },
+                          branchB: { ...abTestConfig.branchB, weight: 100 - val }
+                        });
+                      }}
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 border-t border-slate-100 bg-white flex justify-end gap-3">
+                <button onClick={() => setShowCanvas(false)} className="px-6 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-colors">
+                  {lang === 'zh' ? '取消' : 'Cancel'}
+                </button>
+                <button onClick={() => setShowCanvas(false)} className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-colors flex items-center gap-2">
+                  <Save className="w-4 h-4" />
+                  {lang === 'zh' ? '保存策略' : 'Save Strategy'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
