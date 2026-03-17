@@ -85,7 +85,7 @@ export function EmptyData({
   title = '暂无数据',
   description = '当前还没有任何数据，点击上方按钮创建新内容',
   action,
-}: Omit<EmptyStateProps, 'icon' | 'iconEmoji' | 'title'>) {
+}: Omit<EmptyStateProps, 'icon' | 'iconEmoji'> & { title?: string }) {
   return (
     <EmptyState
       iconEmoji="📊"

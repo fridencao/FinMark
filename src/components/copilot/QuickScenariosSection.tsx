@@ -70,7 +70,7 @@ export function QuickScenariosSection() {
             setAgentResult(type, { type, status: 'running', result: null });
             const agentPrompt = `基于营销目标：${scenario.goal}，以及总监的方案，请执行你的任务。`;
             const result = await callAgent(type, agentPrompt, { goal: scenario.goal, masterPlan: masterContent }, language);
-            setAgentResult(type, { type, status: 'completed', result });
+            setAgentResult(type, { type, status: 'completed', result: result.content });
           } catch (err) {
             setAgentResult(type, {
               type,

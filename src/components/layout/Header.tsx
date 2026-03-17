@@ -8,8 +8,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 const routeTitles: Record<string, { zh: string; en: string }> = {
   '/copilot': { zh: '智能营销助手', en: 'Copilot' },
   '/factory': { zh: '场景工厂', en: 'Scenario Factory' },
+  '/factory/:id': { zh: '场景详情', en: 'Scenario Detail' },
   '/brain': { zh: '策略原子库', en: 'Strategy Brain' },
+  '/brain/atom/:id': { zh: '原子详情', en: 'Atom Detail' },
   '/performance': { zh: '效果仪表盘', en: 'Performance' },
+  '/performance/report': { zh: '报表中心', en: 'Report Center' },
+  '/performance/alarm': { zh: '告警管理', en: 'Alarm Management' },
   '/expert': { zh: '专家模式', en: 'Expert Mode' },
   '/agents': { zh: '智能体管理', en: 'Agent Management' },
   '/settings': { zh: '系统设置', en: 'Settings' },
@@ -19,14 +23,27 @@ export function AppHeader() {
   const location = useLocation();
   const { language, setLanguage } = useAppStore();
 
-  const currentTitle = routeTitles[location.pathname] || { zh: 'FinMark AI', en: 'FinMark AI' };
+  const getCurrentTitle = () => {
+    const path = location.pathname;
+    if (routeTitles[path]) {
+      return language === 'zh' ? routeTitles[path].zh : routeTitles[path].en;
+    }
+    for (const [key, value] of Object.entries(routeTitles)) {
+      if (key.includes(':') && path.match(new RegExp('^' + key.replace(/:[^/]+/, '[^/]+') + '$'))) {
+        return language === 'zh' ? value.zh : value.en;
+      }
+    }
+    return 'FinMark AI';
+  };
+
+  const currentTitle = getCurrentTitle();
 
   return (
     <header className="h-16 border-b border-slate-200 bg-white px-8 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <LayoutDashboard className="w-4 h-4" />
-          <span>{language === 'zh' ? currentTitle.zh : currentTitle.en}</span>
+          <span>{currentTitle}</span>
         </div>
       </div>
 

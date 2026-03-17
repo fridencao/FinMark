@@ -125,7 +125,7 @@ export function PerformancePage() {
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric, idx) => (
-          <Card key={idx} className="p-6 rounded-xl">
+          <Card key={idx} className="p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-slate-500">{metric.title}</span>
               {metric.up ? (
@@ -145,7 +145,7 @@ export function PerformancePage() {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Trend Chart */}
-        <Card className="p-6 rounded-xl lg:col-span-2">
+        <Card className="p-6 lg:col-span-2">
           <h3 className="font-bold text-lg mb-6">{t.reachTrend}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trendData}>
@@ -164,7 +164,7 @@ export function PerformancePage() {
         </Card>
 
         {/* Channel Distribution */}
-        <Card className="p-6 rounded-xl">
+        <Card className="p-6">
           <h3 className="font-bold text-lg mb-6">{t.channelDist}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -191,7 +191,7 @@ export function PerformancePage() {
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Segment Distribution */}
-        <Card className="p-6 rounded-xl">
+        <Card className="p-6">
           <h3 className="font-bold text-lg mb-6">{t.segmentDist}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -213,7 +213,7 @@ export function PerformancePage() {
         </Card>
 
         {/* Activity Ranking */}
-        <Card className="p-6 rounded-xl lg:col-span-2">
+        <Card className="p-6 lg:col-span-2">
           <h3 className="font-bold text-lg mb-6">{t.activityRank}</h3>
           <div className="overflow-x-auto">
             <table className="w-full">

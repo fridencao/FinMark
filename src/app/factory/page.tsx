@@ -232,7 +232,7 @@ export function FactoryPage() {
       {/* Scenario Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredScenarios.map(scenario => (
-          <Card key={scenario.id} className="p-6 space-y-4 hover:shadow-md transition-shadow rounded-xl">
+          <Card key={scenario.id} className="p-6 space-y-4 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scenario.color}`}>

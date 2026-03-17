@@ -92,8 +92,8 @@ export function ExpertPage() {
         {expertModules.map(module => (
           <Card
             key={module.id}
-            className={`p-6 cursor-pointer transition-all hover:shadow-md rounded-xl ${
-              activeModule === module.id ? 'ring-2 ring-indigo-500 border-indigo-500' : ''
+            className={`p-6 cursor-pointer transition-all hover:shadow-md ${
+              activeModule === module.id ? 'ring-2 ring-indigo-500' : ''
             }`}
             onClick={() => setActiveModule(module.id)}
           >

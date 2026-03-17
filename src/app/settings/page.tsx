@@ -183,7 +183,7 @@ export function SettingsPage() {
             </Button>
           </div>
 
-          <Card className="rounded-xl">
+          <Card>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -221,7 +221,7 @@ export function SettingsPage() {
         <TabsContent value="integration" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {integrations.map(integration => (
-              <Card key={integration.id} className="p-6 rounded-xl">
+              <Card key={integration.id} className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
@@ -278,7 +278,7 @@ export function SettingsPage() {
             </Button>
           </div>
 
-          <Card className="rounded-xl">
+          <Card>
             <Table>
               <TableHeader>
                 <TableRow>

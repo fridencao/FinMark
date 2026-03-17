@@ -239,12 +239,16 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
               <Button size="sm" variant="outline" onClick={handleExport}>
                 <Download className="w-4 h-4" />
               </Button>
-              <Button size="sm" variant="outline" asChild>
-                <label>
-                  <Upload className="w-4 h-4" />
-                  <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-                </label>
+              <Button size="sm" variant="outline" onClick={() => document.getElementById('template-import-input')?.click()}>
+                <Upload className="w-4 h-4" />
               </Button>
+              <input 
+                id="template-import-input"
+                type="file" 
+                accept=".json" 
+                onChange={handleImport} 
+                className="hidden" 
+              />
               <Button size="sm" onClick={handleCreateTemplate}>
                 <Plus className="w-4 h-4" />
               </Button>

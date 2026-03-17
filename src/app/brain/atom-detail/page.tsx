@@ -145,7 +145,7 @@ export function BrainAtomDetailPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <Card className="p-4 rounded-xl">
+        <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
               <Users className="w-5 h-5 text-indigo-600" />
@@ -156,7 +156,7 @@ export function BrainAtomDetailPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 rounded-xl">
+        <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-emerald-600" />
@@ -167,7 +167,7 @@ export function BrainAtomDetailPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 rounded-xl">
+        <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
               <Clock className="w-5 h-5 text-amber-600" />
@@ -178,7 +178,7 @@ export function BrainAtomDetailPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 rounded-xl">
+        <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
               <Zap className="w-5 h-5 text-violet-600" />
@@ -192,7 +192,7 @@ export function BrainAtomDetailPage() {
       </div>
 
       {/* Tags */}
-      <Card className="p-4 rounded-xl">
+      <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Tag className="w-4 h-4 text-slate-400" />
           <span className="text-sm font-medium text-slate-600">{t.tags}</span>
@@ -216,7 +216,7 @@ export function BrainAtomDetailPage() {
 
         {/* Config Tab */}
         <TabsContent value="config" className="space-y-6 mt-6">
-          <Card className="p-6 rounded-xl">
+          <Card className="p-6">
             <h4 className="font-bold mb-4">{t.conditions}</h4>
             <div className="space-y-3">
               {atom.conditions.map((condition, idx) => (
@@ -233,7 +233,7 @@ export function BrainAtomDetailPage() {
 
         {/* Usage Tab */}
         <TabsContent value="usage" className="mt-6">
-          <Card className="rounded-xl">
+          <Card>
             <Table>
               <TableHeader>
                 <TableRow>

@@ -163,7 +163,7 @@ export function BrainPage() {
       {/* Atom Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredAtoms.map(atom => (
-          <Card key={atom.id} className="p-6 space-y-4 hover:shadow-md transition-shadow rounded-xl">
+          <Card key={atom.id} className="p-6 space-y-4 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${

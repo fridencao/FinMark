@@ -120,8 +120,8 @@ export function AgentsPage() {
         {agents.map(agent => (
           <Card
             key={agent.id}
-            className={`p-6 cursor-pointer transition-all hover:shadow-md rounded-xl ${
-              selectedAgent?.id === agent.id ? 'ring-2 ring-indigo-500 border-indigo-500' : ''
+            className={`p-6 cursor-pointer transition-all hover:shadow-md ${
+              selectedAgent?.id === agent.id ? 'ring-2 ring-indigo-500' : ''
             }`}
             onClick={() => setSelectedAgent(agent)}
           >
@@ -137,14 +137,14 @@ export function AgentsPage() {
                   </Badge>
                 </div>
               </div>
-              <Switch 
+              <Switch
                 checked={agent.status === 'running'}
                 onCheckedChange={() => handleToggleStatus(agent.id)}
               />
             </div>
-            
+
             <p className="text-xs text-slate-500 mb-4">{agent.description}</p>
-            
+
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-2 bg-slate-50 rounded-xl">
                 <div className="text-sm font-bold text-indigo-600">{agent.todayCalls}</div>
@@ -179,7 +179,7 @@ export function AgentsPage() {
 
       {/* Agent Config Panel */}
       {selectedAgent && (
-        <Card className="p-6 rounded-xl">
+        <Card className="p-6">
           <h3 className="font-bold text-lg mb-6">
             {selectedAgent.name} - {t.modelConfig}
           </h3>
