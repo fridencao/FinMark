@@ -11,8 +11,11 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  onValueChange,
   ...props
-}: SliderPrimitive.Root.Props) {
+}: SliderPrimitive.Root.Props & {
+  onValueChange?: (values: number[]) => void
+}) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -32,6 +35,7 @@ function Slider({
       min={min}
       max={max}
       thumbAlignment="edge"
+      onValueChange={onValueChange}
       {...props}
     >
       <SliderPrimitive.Control className="relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col">

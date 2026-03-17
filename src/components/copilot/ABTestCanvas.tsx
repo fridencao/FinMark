@@ -4,7 +4,6 @@ import { useAppStore } from '@/stores/app';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -177,13 +176,17 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
                 <span>B: {100 - weight}%</span>
               </div>
             </div>
-            <Slider 
-              value={[weight]} 
-              onValueChange={(v) => setWeight(v[0])}
-              max={100}
-              step={5}
-              className="w-full"
-            />
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={weight}
+                onChange={(e) => setWeight(parseInt(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
           </div>
 
           {/* 流量分配可视化 */}

@@ -75,13 +75,13 @@ export function AgentResultsSection() {
           const status = agentResults[agent.type]?.status || (isOrchestrating ? 'running' : 'completed');
           
           return (
-            <motion.div 
+            <motion.div
               key={agent.type}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4"
+              className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={cn("p-1.5 rounded-lg text-white", agent.color)}>{agent.icon}</div>
                   <span className="font-bold text-sm">{agent.label}</span>
@@ -90,14 +90,14 @@ export function AgentResultsSection() {
                   {status === 'running' ? (language === 'zh' ? '运行中' : 'Running') : t.completed}
                 </Badge>
               </div>
-              
-              <ScrollArea className="h-32">
+
+              <ScrollArea className="max-h-20">
                 <div className="text-xs text-slate-600 leading-relaxed pr-2">
                   {result}
                 </div>
               </ScrollArea>
-              
-              <div className="pt-2 border-t border-slate-50 flex justify-between items-center">
+
+              <div className="pt-2 mt-2 border-t border-slate-50 flex justify-between items-center">
                 <Button variant="ghost" size="sm" className="text-[10px] font-bold text-indigo-600 hover:underline">
                   {t.viewMetrics} →
                 </Button>
