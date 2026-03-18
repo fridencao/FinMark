@@ -32,6 +32,7 @@ services:
       - agent-service
       - llm-gateway
       - data-service
+      - workflow-service
 
   # Microservices
   agent-service:
@@ -70,6 +71,20 @@ services:
       - finmark-network
     depends_on:
       - postgres
+
+  # Workflow Service (LangGraph)
+  workflow-service:
+    build:
+      context: ./services/workflow-service
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    environment:
+      AGENT_SERVICE_URL: http://agent-service:3001
+    networks:
+      - finmark-network
+    depends_on:
+      - agent-service
 
   # Database
   postgres:

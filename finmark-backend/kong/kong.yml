@@ -212,6 +212,39 @@ services:
             - name: Strict-Transport-Security
               value: "max-age=31536000; includeSubDomains"
 
+  # Workflow Service - JWT Auth + Custom Rate Limit
+  - name: workflow-service
+    url: http://workflow-service:3005
+    routes:
+      - name: workflow-routes
+        paths:
+          - /api/workflows
+        strip_path: true
+      - name: workflow-executions
+        paths:
+          - /api/executions
+        strip_path: true
+    plugins:
+      - name: jwt
+      - name: rate-limiting
+        config:
+          minute: 50
+          policy: redis
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+          headers:
+            - Authorization
+            - Content-Type
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 10
+          size_unit: megabytes
+
   # Prometheus Metrics Service (no auth required)
   - name: prometheus-metrics
     url: http://127.0.0.1:8000/
