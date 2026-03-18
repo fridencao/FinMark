@@ -33,6 +33,7 @@ services:
       - llm-gateway
       - data-service
       - workflow-service
+      - integration-service
 
   # Microservices
   agent-service:
@@ -81,6 +82,25 @@ services:
       - "3005:3005"
     environment:
       AGENT_SERVICE_URL: http://agent-service:3001
+    networks:
+      - finmark-network
+    depends_on:
+      - agent-service
+
+  # Integration Service (CRM + Rights)
+  integration-service:
+    build:
+      context: ./services/integration-service
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3006"
+    environment:
+      CRM_ENABLED: "true"
+      CRM_API_URL: http://crm-system:8080
+      CRM_API_KEY: ${CRM_API_KEY:-demo-key}
+      RIGHTS_ENABLED: "true"
+      RIGHTS_API_URL: http://rights-system:8080
+      RIGHTS_API_KEY: ${RIGHTS_API_KEY:-demo-key}
     networks:
       - finmark-network
     depends_on:

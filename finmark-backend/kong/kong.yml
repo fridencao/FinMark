@@ -101,90 +101,24 @@ services:
             - OPTIONS
           headers:
             - Authorization
-            - Content-Type
-          exposed_headers:
-            - X-Total-Count
-          credentials: true
-          max_age: 3600
-      - name: rate-limiting
-        config:
-          minute: 100
-          policy: redis
-      - name: request-size-limiting
-        config:
-          allowed_payload_size: 10
-          size_unit: megabytes
-      - name: headers-more
-        config:
-          set:
-            - name: X-Frame-Options
-              value: DENY
-            - name: X-Content-Type-Options
-              value: nosniff
-            - name: X-XSS-Protection
-              value: "1; mode=block"
-            - name: Strict-Transport-Security
-              value: "max-age=31536000; includeSubDomains"
-            - name: Referrer-Policy
-              value: strict-origin-when-cross-origin
 
-  # LLM Gateway - API Key Auth + Stricter Rate Limit
-  - name: llm-gateway
-    url: http://llm-gateway:3002
+  # Integration Service - CRM + Rights (API Key Auth)
+  - name: integration-service
+    url: http://integration-service:3006
     routes:
-      - name: llm-route
+      - name: integration-crm
         paths:
-          - /api/llm
+          - /api/crm
         strip_path: true
-        methods:
-          - GET
-          - POST
+      - name: integration-rights
+        paths:
+          - /api/rights
+        strip_path: true
     plugins:
       - name: key-auth
       - name: rate-limiting
         config:
-          minute: 50
-          policy: redis
-      - name: cors
-        config:
-          origins:
-            - "*"
-          methods:
-            - GET
-            - POST
-          headers:
-            - Authorization
-            - Content-Type
-            - x-api-key
-      - name: request-size-limiting
-        config:
-          allowed_payload_size: 10
-          size_unit: megabytes
-      - name: headers-more
-        config:
-          set:
-            - name: X-Frame-Options
-              value: DENY
-            - name: X-Content-Type-Options
-              value: nosniff
-
-  # Data Service - JWT Auth + Higher Rate Limit
-  - name: data-service
-    url: http://data-service:3003
-    routes:
-      - name: data-scenarios
-        paths:
-          - /api/data/scenarios
-        strip_path: true
-      - name: data-atoms
-        paths:
-          - /api/data/atoms
-        strip_path: true
-    plugins:
-      - name: jwt
-      - name: rate-limiting
-        config:
-          minute: 200
+          minute: 100
           policy: redis
       - name: cors
         config:
@@ -198,48 +132,7 @@ services:
           headers:
             - Authorization
             - Content-Type
-      - name: request-size-limiting
-        config:
-          allowed_payload_size: 5
-          size_unit: megabytes
-      - name: headers-more
-        config:
-          set:
-            - name: X-Frame-Options
-              value: DENY
-            - name: X-Content-Type-Options
-              value: nosniff
-            - name: Strict-Transport-Security
-              value: "max-age=31536000; includeSubDomains"
-
-  # Workflow Service - JWT Auth + Custom Rate Limit
-  - name: workflow-service
-    url: http://workflow-service:3005
-    routes:
-      - name: workflow-routes
-        paths:
-          - /api/workflows
-        strip_path: true
-      - name: workflow-executions
-        paths:
-          - /api/executions
-        strip_path: true
-    plugins:
-      - name: jwt
-      - name: rate-limiting
-        config:
-          minute: 50
-          policy: redis
-      - name: cors
-        config:
-          origins:
-            - "*"
-          methods:
-            - GET
-            - POST
-          headers:
-            - Authorization
-            - Content-Type
+            - x-api-key
       - name: request-size-limiting
         config:
           allowed_payload_size: 10
