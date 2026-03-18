@@ -98,10 +98,20 @@ export function AgentResultsSection() {
               </ScrollArea>
 
               <div className="pt-2 mt-2 border-t border-slate-50 flex justify-between items-center">
-                <Button variant="ghost" size="sm" className="text-[10px] font-bold text-indigo-600 hover:underline">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-[10px] font-bold text-indigo-600 hover:underline"
+                  onClick={() => alert(`${agent.label} 指标详情`)}
+                >
                   {t.viewMetrics} →
                 </Button>
-                <Button variant="ghost" size="sm" className="text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-[10px] font-bold text-slate-400 hover:text-slate-600"
+                  onClick={() => alert(`${agent.label} 重新生成`)}
+                >
                   {t.regenerate}
                 </Button>
               </div>
