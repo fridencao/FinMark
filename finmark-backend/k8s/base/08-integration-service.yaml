@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: integration-service
+  namespace: finmark
+  labels:
+    app: integration-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: integration-service
+  template:
+    metadata:
+      labels:
+        app: integration-service
+        tier: backend
+    spec:
+      containers:
+        - name: integration-service
+          image: finmark/integration-service:latest
+          ports:
+            - containerPort: 3006
+          env:
+            - name: PORT
+              value: "3006"
+            - name: CRM_ENABLED
+              value: "true"
+            - name: RIGHTS_ENABLED
+              value: "true"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3006
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3006
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: integration-service
+  namespace: finmark
+spec:
+  selector:
+    app: integration-service
+  ports:
+    - port: 3006
+      targetPort: 3006

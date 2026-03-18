@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-db
+  namespace: finmark
+  labels:
+    app: kong-db
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong-db
+  template:
+    metadata:
+      labels:
+        app: kong-db
+        tier: database
+    spec:
+      containers:
+        - name: kong-db
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: finmark-secrets
+                  key: KONG_PG_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finmark-secrets
+                  key: KONG_PG_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: finmark-secrets
+                  key: KONG_PG_DATABASE
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: kong-db-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: kong-db-data
+          persistentVolumeClaim:
+            claimName: kong-db-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kong-db-pvc
+  namespace: finmark
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-db
+  namespace: finmark
+spec:
+  selector:
+    app: kong-db
+  ports:
+    - port: 5432
+      targetPort: 5432

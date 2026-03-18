@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: finmark-prod
+
+commonLabels:
+  environment: production
+
+patchesStrategicMerge:
+  - patch-replicas.yaml
+
+configMapGenerator:
+  - name: finmark-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=warn
+
+images:
+  - name: finmark/agent-service
+    newTag: v1.0.0
+  - name: finmark/llm-gateway
+    newTag: v1.0.0
+  - name: finmark/data-service
+    newTag: v1.0.0
+  - name: finmark/workflow-service
+    newTag: v1.0.0
+  - name: finmark/integration-service
+    newTag: v1.0.0

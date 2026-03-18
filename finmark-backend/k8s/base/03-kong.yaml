@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong
+  namespace: finmark
+  labels:
+    app: kong
+    tier: gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kong
+  template:
+    metadata:
+      labels:
+        app: kong
+        tier: gateway
+    spec:
+      containers:
+        - name: kong
+          image: kong:3.4
+          ports:
+            - containerPort: 8000
+              name: proxy
+            - containerPort: 8443
+              name: proxy-ssl
+            - containerPort: 8001
+              name: admin
+          env:
+            - name: KONG_DATABASE
+              value: "postgres"
+            - name: KONG_PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: finmark-config
+                  key: KONG_PG_HOST
+            - name: KONG_PG_PORT
+              value: "5432"
+            - name: KONG_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: finmark-secrets
+                  key: KONG_PG_USER
+            - name: KONG_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finmark-secrets
+                  key: KONG_PG_PASSWORD
+            - name: KONG_PG_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: finmark-secrets
+                  key: KONG_PG_DATABASE
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /usr/local/kong/kong.yml
+            - name: KONG_PROXY_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_ADMIN_LISTEN
+              value: 0.0.0.0:8001
+            - name: KONG_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: finmark-config
+                  key: LOG_LEVEL
+          volumeMounts:
+            - name: kong-config
+              mountPath: /usr/local/kong/kong.yml
+              subPath: kong.yml
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: kong-config
+          configMap:
+            name: kong-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong
+  namespace: finmark
+spec:
+  type: LoadBalancer
+  selector:
+    app: kong
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+    - name: https
+      port: 443
+      targetPort: 8443

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finmark-config
+  namespace: finmark
+data:
+  DATABASE_URL: "postgresql://finmark:finmark@postgres:5432/finmark"
+  LLM_GATEWAY_URL: "http://llm-gateway:3002"
+  AGENT_SERVICE_URL: "http://agent-service:3001"
+  DATA_SERVICE_URL: "http://data-service:3003"
+  WORKFLOW_SERVICE_URL: "http://workflow-service:3005"
+  INTEGRATION_SERVICE_URL: "http://integration-service:3006"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  KONG_DATABASE: "postgres"
+  KONG_PG_HOST: "kong-db"
+  KONG_PG_PORT: "5432"
+  LOG_LEVEL: "info"
