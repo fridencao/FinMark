@@ -34,6 +34,9 @@ services:
       - data-service
       - workflow-service
       - integration-service
+      - user-service
+      - settings-service
+      - performance-service
 
   # Microservices
   agent-service:
@@ -105,6 +108,45 @@ services:
       - finmark-network
     depends_on:
       - agent-service
+
+  # User Service - Authentication & User Management
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    ports:
+      - "3007:3007"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
+      JWT_EXPIRES_IN: 7d
+    networks:
+      - finmark-network
+    depends_on:
+      - postgres
+
+  # Settings Service - Models, Integrations
+  settings-service:
+    build:
+      context: ./services/settings-service
+      dockerfile: Dockerfile
+    ports:
+      - "3008:3008"
+    networks:
+      - finmark-network
+    depends_on:
+      - postgres
+
+  # Performance Service - Dashboard, Analytics
+  performance-service:
+    build:
+      context: ./services/performance-service
+      dockerfile: Dockerfile
+    ports:
+      - "3009:3009"
+    networks:
+      - finmark-network
+    depends_on:
+      - postgres
 
   # Database
   postgres:

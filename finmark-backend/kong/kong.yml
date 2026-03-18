@@ -138,6 +138,130 @@ services:
           allowed_payload_size: 10
           size_unit: megabytes
 
+  # Data Service - Scenarios, Atoms, ABTests, Schedules
+  - name: data-service
+    url: http://data-service:3003
+    routes:
+      - name: data-scenarios
+        paths:
+          - /api/scenarios
+        strip_path: true
+      - name: data-atoms
+        paths:
+          - /api/atoms
+        strip_path: true
+      - name: data-abtests
+        paths:
+          - /api/abtests
+        strip_path: true
+      - name: data-schedules
+        paths:
+          - /api/schedules
+        strip_path: true
+    plugins:
+      - name: jwt
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: redis
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+          headers:
+            - Authorization
+            - Content-Type
+
+  # User Service - Authentication & User Management
+  - name: user-service
+    url: http://user-service:3007
+    routes:
+      - name: user-auth
+        paths:
+          - /api/auth
+        strip_path: true
+      - name: user-users
+        paths:
+          - /api/users
+        strip_path: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Authorization
+            - Content-Type
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+
+  # Settings Service - Models, Integrations, Global Config
+  - name: settings-service
+    url: http://settings-service:3008
+    routes:
+      - name: settings-routes
+        paths:
+          - /api/settings
+        strip_path: true
+    plugins:
+      - name: jwt
+      - name: rate-limiting
+        config:
+          minute: 50
+          policy: redis
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+          headers:
+            - Authorization
+            - Content-Type
+
+  # Performance Service - Dashboard, Charts, Alarms
+  - name: performance-service
+    url: http://performance-service:3009
+    routes:
+      - name: performance-routes
+        paths:
+          - /api/performance
+        strip_path: true
+    plugins:
+      - name: jwt
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+          headers:
+            - Authorization
+            - Content-Type
+
   # Prometheus Metrics Service (no auth required)
   - name: prometheus-metrics
     url: http://127.0.0.1:8000/
