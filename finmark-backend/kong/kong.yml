@@ -1,6 +1,80 @@
 _format_version: "3.0"
 _transform: true
 
+# Consumers
+consumers:
+  - username: frontend
+  - username: internal
+  - username: rm-app
+  - username: agent-service
+    keyauth_credentials:
+      - key: agent-service-key-2024
+
+# Plugins (Global)
+plugins:
+  # JWT Authentication
+  - name: jwt
+    config:
+      key_claim_name: kid
+      claims_to_verify:
+        - exp
+
+  # API Key Authentication
+  - name: key-auth
+    config:
+      key_names:
+        - x-api-key
+        - api-key
+      key_in_header: true
+
+  # Rate Limiting (Global Default)
+  - name: rate-limiting
+    config:
+      minute: 100
+      hour: 1000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      fault_tolerant: true
+      hide_client_headers: false
+
+  # IP Restriction
+  - name: ip-restriction
+    config:
+      allow:
+        - 127.0.0.1
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+
+  # Prometheus Metrics
+  - name: prometheus
+    config:
+      per_consumer: false
+      latency_metrics: true
+      bandwidth_metrics: true
+      status_code_metrics: true
+      request_metrics: true
+
+  # HTTP Logging
+  - name: http-log
+    config:
+      http_endpoint: http://logger:3004/logs
+      method: POST
+      content_type: application/json
+      timeout: 1000
+      keepalive: 1000
+      flush_interval: 1
+      retry_count: 3
+      queue_size: 1000
+
+  # Request Transformer
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - X-Kong-Downstream-Name:$(vars.service_name)
+
+# Services
 services:
   - name: agent-service
     url: http://agent-service:3001
@@ -8,25 +82,152 @@ services:
       - name: agent-route
         paths:
           - /api/agents
+        strip_path: true
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
     plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Authorization
+            - Content-Type
+          exposed_headers:
+            - X-Total-Count
+          credentials: true
+          max_age: 3600
       - name: rate-limiting
         config:
           minute: 100
+          policy: redis
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 10
+          size_unit: megabytes
+      - name: headers-more
+        config:
+          set:
+            - name: X-Frame-Options
+              value: DENY
+            - name: X-Content-Type-Options
+              value: nosniff
+            - name: X-XSS-Protection
+              value: "1; mode=block"
+            - name: Strict-Transport-Security
+              value: "max-age=31536000; includeSubDomains"
+            - name: Referrer-Policy
+              value: strict-origin-when-cross-origin
 
+  # LLM Gateway - API Key Auth + Stricter Rate Limit
   - name: llm-gateway
     url: http://llm-gateway:3002
     routes:
       - name: llm-route
         paths:
           - /api/llm
+        strip_path: true
+        methods:
+          - GET
+          - POST
+    plugins:
+      - name: key-auth
+      - name: rate-limiting
+        config:
+          minute: 50
+          policy: redis
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+          headers:
+            - Authorization
+            - Content-Type
+            - x-api-key
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 10
+          size_unit: megabytes
+      - name: headers-more
+        config:
+          set:
+            - name: X-Frame-Options
+              value: DENY
+            - name: X-Content-Type-Options
+              value: nosniff
 
+  # Data Service - JWT Auth + Higher Rate Limit
   - name: data-service
     url: http://data-service:3003
     routes:
-      - name: data-route
+      - name: data-scenarios
         paths:
-          - /api/data
+          - /api/data/scenarios
+        strip_path: true
+      - name: data-atoms
+        paths:
+          - /api/data/atoms
+        strip_path: true
+    plugins:
+      - name: jwt
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: redis
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+          headers:
+            - Authorization
+            - Content-Type
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 5
+          size_unit: megabytes
+      - name: headers-more
+        config:
+          set:
+            - name: X-Frame-Options
+              value: DENY
+            - name: X-Content-Type-Options
+              value: nosniff
+            - name: Strict-Transport-Security
+              value: "max-age=31536000; includeSubDomains"
 
-consumers:
-  - username: frontend
-  - username: internal
+  # Prometheus Metrics Service (no auth required)
+  - name: prometheus-metrics
+    url: http://127.0.0.1:8000/
+    routes:
+      - name: prometheus-route
+        paths:
+          - /metrics
+        strip_path: true
+        methods:
+          - GET
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+          headers:
+            - Authorization
