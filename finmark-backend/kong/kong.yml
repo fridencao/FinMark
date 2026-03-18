@@ -1,0 +1,32 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: agent-service
+    url: http://agent-service:3001
+    routes:
+      - name: agent-route
+        paths:
+          - /api/agents
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+
+  - name: llm-gateway
+    url: http://llm-gateway:3002
+    routes:
+      - name: llm-route
+        paths:
+          - /api/llm
+
+  - name: data-service
+    url: http://data-service:3003
+    routes:
+      - name: data-route
+        paths:
+          - /api/data
+
+consumers:
+  - username: frontend
+  - username: internal
