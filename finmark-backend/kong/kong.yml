@@ -1,0 +1,95 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth-service
+    url: http://host.docker.internal:3001
+    routes:
+      - name: auth-route
+        paths:
+          - /api/auth
+        strip_path: false
+    plugins:
+      - name: cors
+
+  - name: data-service
+    url: http://host.docker.internal:3001
+    routes:
+      - name: data-route
+        paths:
+          - /api/scenarios
+          - /api/atoms
+          - /api/users
+        strip_path: false
+    plugins:
+      - name: cors
+      - name: rate-limiting
+        config:
+          minute: 100
+          hour: 1000
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          fault_tolerant: true
+
+  - name: agent-service
+    url: http://host.docker.internal:3003
+    routes:
+      - name: agent-route
+        paths:
+          - /api/agents
+        strip_path: false
+    plugins:
+      - name: cors
+      - name: rate-limiting
+        config:
+          minute: 30
+          hour: 200
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          fault_tolerant: true
+
+  - name: health-service
+    url: http://host.docker.internal:3001
+    routes:
+      - name: health-route
+        paths:
+          - /health
+        strip_path: false
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+        - Accept
+        - X-Requested-With
+      exposed_headers:
+        - X-Total-Count
+        - X-Request-Id
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 10
+      size_unit: megabytes
+
+  - name: prometheus
+    config:
+      per_consumer: true
+
+consumers:
+  - username: default-consumer

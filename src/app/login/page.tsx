@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react';
+import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
-
-// Mock 测试账号
-const MOCK_USERS = [
-  { username: 'admin', password: 'admin123', name: '管理员', role: 'admin' },
-  { username: 'manager1', password: 'manager123', name: '李四', role: 'manager' },
-  { username: 'operator1', password: 'operator123', name: '王五', role: 'operator' },
-];
+import api from '@/services/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -37,20 +31,14 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    // 模拟 API 调用延迟
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const response = await api.post('/auth/login', { username, password });
 
-    // 验证 Mock 用户
-    const mockUser = MOCK_USERS.find(u => u.username === username && u.password === password);
-
-    if (mockUser) {
-      // 登录成功
-      const token = 'mock-jwt-token-' + Date.now();
-      login(token, {
-        id: '1',
-        username: mockUser.username,
-        name: mockUser.name,
-        role: mockUser.role,
+      login(response.data.token, {
+        id: response.data.user.id,
+        username: response.data.user.username,
+        name: response.data.user.name,
+        role: response.data.user.role,
         avatar: undefined,
       });
 
@@ -61,23 +49,16 @@ export default function LoginPage() {
       }
 
       navigate('/copilot');
-    } else {
-      setError('用户名或密码错误');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '登录失败，请检查用户名和密码');
       setIsLoading(false);
     }
-  };
-
-  // 填充测试账号
-  const fillTestAccount = (username: string, password: string) => {
-    setUsername(username);
-    setPassword(password);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-emerald-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl rounded-2xl">
         <div className="p-8 space-y-8">
-          {/* Logo & Title */}
           <div className="text-center space-y-4">
             <div className="flex justify-center">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg">
@@ -90,9 +71,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Username */}
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-medium">
                 用户名
@@ -107,11 +86,11 @@ export default function LoginPage() {
                   placeholder="请输入用户名"
                   className="pl-10 h-11"
                   disabled={isLoading}
+                  autoComplete="username"
                 />
               </div>
             </div>
 
-            {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">
                 密码
@@ -126,6 +105,7 @@ export default function LoginPage() {
                   placeholder="请输入密码"
                   className="pl-10 pr-10 h-11"
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -138,7 +118,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -160,14 +139,12 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 text-center">
                 {error}
               </div>
             )}
 
-            {/* Submit Button */}
             <Button
               type="submit"
               disabled={isLoading}
@@ -184,27 +161,11 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Test Accounts */}
-          <div className="pt-6 border-t border-slate-100">
-            <p className="text-xs font-medium text-slate-400 mb-3 text-center">测试账号（点击填充）</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { role: '管理员', username: 'admin', password: 'admin123' },
-                { role: '业务经理', username: 'manager1', password: 'manager123' },
-                { role: '运营人员', username: 'operator1', password: 'operator123' },
-              ].map((account) => (
-                <button
-                  key={account.username}
-                  type="button"
-                  onClick={() => fillTestAccount(account.username, account.password)}
-                  className="p-2 text-xs bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl transition-colors text-center"
-                >
-                  <div className="font-medium text-slate-700">{account.role}</div>
-                  <div className="text-slate-400 text-[10px] mt-0.5">{account.username}</div>
-                </button>
-              ))}
+          {import.meta.env.DEV && (
+            <div className="pt-4 border-t border-slate-100 text-xs text-slate-400 text-center">
+              API: {import.meta.env.VITE_API_BASE_URL || '/api'}
             </div>
-          </div>
+          )}
         </div>
       </Card>
     </div>
