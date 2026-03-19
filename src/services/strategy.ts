@@ -63,27 +63,27 @@ export const updateAtom = (id: string, data: Partial<Atom>) =>
 
 export const deleteAtom = (id: string) => api.delete(`/atoms/${id}`);
 
-export const getABTests = (params?: any) => api.get('/abtests', { params });
+export const getABTests = (params?: any) => api.get('/strategy/abtests', { params });
 
-export const getABTest = (id: string) => api.get(`/abtests/${id}`);
+export const getABTest = (id: string) => api.get(`/strategy/abtests/${id}`);
 
 export const createABTest = (data: Partial<ABTestConfig>) =>
-  api.post('/abtests', data);
+  api.post('/strategy/abtests', data);
 
 export const updateABTest = (id: string, data: Partial<ABTestConfig>) =>
-  api.put(`/abtests/${id}`, data);
+  api.put(`/strategy/abtests/${id}`, data);
 
-export const startABTest = (id: string) => api.post(`/abtests/${id}/start`);
+export const startABTest = (id: string) => api.post(`/strategy/abtests/${id}/start`);
 
-export const stopABTest = (id: string) => api.post(`/abtests/${id}/stop`);
+export const stopABTest = (id: string) => api.post(`/strategy/abtests/${id}/stop`);
 
-export const getABTestResult = (id: string) => api.get(`/abtests/${id}/result`);
+export const getABTestResult = (id: string) => api.get(`/strategy/abtests/${id}/result`);
 
-export const getSchedules = (params?: any) => api.get('/schedules', { params });
+export const getSchedules = (params?: any) => api.get('/strategy/schedules', { params });
 
 export const createSchedule = (data: Partial<TaskSchedule>) =>
-  api.post('/schedules', data);
+  api.post('/strategy/schedules', data);
 
-export const pauseSchedule = (id: string) => api.post(`/schedules/${id}/pause`);
+export const pauseSchedule = (id: string) => api.post(`/strategy/schedules/${id}/pause`);
 
-export const resumeSchedule = (id: string) => api.post(`/schedules/${id}/resume`);
+export const resumeSchedule = (id: string) => api.post(`/strategy/schedules/${id}/resume`);

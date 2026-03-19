@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Send, X } from 'lucide-react';
+import { MessageCircle, Send } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -51,37 +51,46 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
     placeholder: '输入您的问题或场景描述...',
     send: '发送',
     suggestions: '推荐问题',
+    thinking: '思考中...',
+    fallback: '抱歉，服务暂时不可用，请稍后重试。',
   } : {
     title: 'RM Copilot Roleplay',
     placeholder: 'Enter your question or scenario...',
     send: 'Send',
     suggestions: 'Suggestions',
+    thinking: 'Thinking...',
+    fallback: 'Sorry, service is temporarily unavailable.',
   };
 
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    const newMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, newMessage]);
+    const userContent = input;
+    setMessages(prev => [...prev, { role: 'user', content: userContent }]);
     setInput('');
     setIsLoading(true);
 
-    timeoutRef.current = window.setTimeout(() => {
-      const responses = language === 'zh' ? [
-        '理解您的需求。针对向客户推荐ESG基金，我建议采用"价值投资+社会责任"的沟通方式。首先强调ESG基金的长期稳健收益，其次突出其对环境和社会贡献的社会价值。',
-        '客户抗拒推销是常见问题。建议采用"需求挖掘"而非"产品推荐"的方式开场。例如："王总，您最近有没有关注到市场动向？"先建立对话，再逐步引入产品。',
-        '高净值客户挽留关键是情感+专业双重维护。建议：1）定期财富检视服务；2）专属理财顾问1对1沟通；3）定制化资产配置方案；4）增值服务（如高端沙龙、子女教育规划）。',
-        '基金定投推广话术要点：1）强调复利效应 - "每月定投3000，20年后可能积累百万"；2）降低门槛 - "每天少喝一杯咖啡的钱"；3）淡化择时 - "无需关注涨跌，自动平摊成本"。',
-      ] : [
-        'I understand. For promoting ESG funds, I recommend using "value investment + social responsibility" communication. Emphasize long-term stable returns and social value.',
-        'Customer resistance is common. Use "need discovery" instead of "product recommendation". Start with "Mr. Wang, have you been following market trends?"',
-        'Key for high-net-worth retention: emotion + professional. Regular wealth review, dedicated advisor, customized asset allocation, value-added services.',
-        'Key points for fund AIP: 1) compound effect, 2) lower threshold, 3) ignore timing.',
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      setMessages(prev => [...prev, { role: 'ai', content: randomResponse }]);
-      setIsLoading(false);
-    }, 1500);
+    timeoutRef.current = window.setTimeout(async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
+        const response = await fetch(`${apiBase}/agents/insight`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ goal: userContent, lang: language }),
+        });
+        const data = await response.json();
+        const aiContent = data?.data || t.fallback;
+        setMessages(prev => [...prev, { role: 'ai', content: aiContent }]);
+      } catch {
+        setMessages(prev => [...prev, { role: 'ai', content: t.fallback }]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 1000);
   };
 
   return (
@@ -116,7 +125,7 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-slate-100 text-slate-500 px-4 py-2 rounded-2xl rounded-tl-sm">
-                  <p className="text-sm">{language === 'zh' ? '思考中...' : 'Thinking...'}</p>
+                  <p className="text-sm">{t.thinking}</p>
                 </div>
               </div>
             )}
@@ -146,6 +155,7 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder={t.placeholder}
               className="flex-1"
+              disabled={isLoading}
             />
             <Button onClick={handleSend} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700">
               <Send className="w-4 h-4" />

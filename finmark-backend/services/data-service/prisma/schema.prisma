@@ -171,3 +171,51 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// ==================== A/B 测试 ====================
+
+model AbTest {
+  id          String      @id @default(uuid())
+  name        String
+  type        String
+  description String?
+  branches    Json
+  metric      String
+  status      TestStatus  @default(draft)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("ab_tests")
+}
+
+enum TestStatus {
+  draft
+  running
+  completed
+  paused
+}
+
+// ==================== 定时任务 ====================
+
+model TaskSchedule {
+  id            String           @id @default(uuid())
+  name          String
+  scenarioId    String?
+  triggerType   String
+  triggerConfig Json?
+  targetSegment String?
+  channels      String[]
+  status        ScheduleStatus  @default(active)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("task_schedules")
+}
+
+enum ScheduleStatus {
+  active
+  paused
+  completed
+}

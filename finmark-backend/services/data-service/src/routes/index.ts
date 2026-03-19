@@ -4,3 +4,4 @@ export { atomRouter } from './atoms.js';
 export { userRouter } from './users.js';
 export { performanceRouter } from './performance.js';
 export { settingsRouter } from './settings.js';
+export { strategyRouter } from './strategy.js';
