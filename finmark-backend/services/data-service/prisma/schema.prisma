@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 用户与认证 ====================
+
+model User {
+  id        String    @id @default(uuid())
+  username  String    @unique
+  email     String    @unique
+  password  String
+  name      String
+  role      UserRole  @default(operator)
+  status    UserStatus @default(enabled)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  admin
+  manager
+  operator
+  readonly
+}
+
+enum UserStatus {
+  enabled
+  disabled
+}
+
+// ==================== 场景 ====================
+
+model Scenario {
+  id              String         @id @default(uuid())
+  title           String
+  goal            String
+  category        ScenarioCategory
+  icon            String?
+  color           String?
+  config          Json?
+  status          ScenarioStatus @default(draft)
+  complianceScore Int?
+  riskLevel       String?
+  isCustom        Boolean        @default(false)
+  executions      Execution[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("scenarios")
+}
+
+enum ScenarioCategory {
+  acquisition
+  growth
+  mature
+  declining
+  recovery
+}
+
+enum ScenarioStatus {
+  draft
+  active
+  paused
+  archived
+}
+
+// ==================== 执行记录 ====================
+
+model Execution {
+  id               String           @id @default(uuid())
+  scenarioId       String
+  scenario         Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  status           ExecutionStatus  @default(pending)
+  config           Json?
+  result           Json?
+  targetCount      Int?
+  actualReach      Int?
+  actualResponse   Int?
+  actualConversion Int?
+  startedAt         DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+
+  @@map("executions")
+}
+
+enum ExecutionStatus {
+  pending
+  running
+  completed
+  failed
+  paused
+}
+
+// ==================== 策略原子 ====================
+
+model Atom {
+  id           String   @id @default(uuid())
+  name         String
+  type         AtomType
+  description  String?
+  successRate  Float?
+  usageCount   Int      @default(0)
+  tags         String[]
+  config       Json?
+  scenarios    String[]
+  status       AtomStatus @default(active)
+  version      String   @default("v1.0")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("atoms")
+}
+
+enum AtomType {
+  hook
+  channel
+  content
+  risk
+}
+
+enum AtomStatus {
+  active
+  inactive
+}
+
+// ==================== 模型配置 ====================
+
+model ModelConfig {
+  id           String   @id @default(uuid())
+  name         String
+  provider     String
+  apiUrl       String?
+  apiKey       String
+  modelVersion String
+  temperature  Float    @default(0.7)
+  maxTokens    Int      @default(4096)
+  status       ConfigStatus @default(enabled)
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("model_configs")
+}
+
+enum ConfigStatus {
+  enabled
+  disabled
+}
+
+// ==================== 审计日志 ====================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  resource  String
+  details   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
