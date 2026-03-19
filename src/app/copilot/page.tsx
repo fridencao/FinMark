@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowRight, Network, MessageSquare, Save, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
@@ -13,9 +14,11 @@ import { Button } from '@/components/ui/button';
 
 export default function CopilotPage() {
   const { language } = useAppStore();
+  const navigate = useNavigate();
   const { masterResult, isOrchestrating, isLoading, stopOrchestration } = useCopilotStore();
   const [showRMChat, setShowRMChat] = useState(false);
   const [showABTest, setShowABTest] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
 
   const t = language === 'zh' ? {
     goalQuestion: '您想要达成什么营销目标？',
@@ -132,9 +135,19 @@ export default function CopilotPage() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-all">
+            <Button
+              variant="outline"
+              className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-all"
+              onClick={() => {
+                if (masterResult) {
+                  localStorage.setItem('copilot-draft', JSON.stringify({ goal: masterResult, savedAt: new Date().toISOString() }));
+                  setDraftSaved(true);
+                  setTimeout(() => setDraftSaved(false), 2000);
+                }
+              }}
+            >
               <Save className="w-4 h-4 mr-2" />
-              {t.saveDraft}
+              {draftSaved ? (language === 'zh' ? '已保存' : 'Saved') : t.saveDraft}
             </Button>
             <Button
               variant="outline"
@@ -152,7 +165,10 @@ export default function CopilotPage() {
               <MessageSquare className="w-4 h-4" />
               {t.rmCopilotBtn}
             </Button>
-            <Button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 flex items-center gap-2">
+            <Button
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 flex items-center gap-2"
+              onClick={() => navigate('/factory')}
+            >
               {t.launchCampaign}
               <ArrowRight className="w-4 h-4" />
             </Button>

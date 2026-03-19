@@ -52,6 +52,7 @@ export function SettingsPage() {
   const { language } = useAppStore();
   const queryClient = useQueryClient();
   const [roles, setRoles] = useState<Role[]>(defaultRoles);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   const { data: modelsData, isLoading: modelsLoading } = useQuery({
     queryKey: ['models'],
@@ -71,25 +72,30 @@ export function SettingsPage() {
   const deleteModelMutation = useMutation({
     mutationFn: deleteModel,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '删除模型失败' : 'Failed to delete model')),
   });
 
   const testModelMutation = useMutation({
     mutationFn: testModel,
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '测试失败' : 'Test failed')),
   });
 
   const connectMutation = useMutation({
     mutationFn: connectIntegration,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '连接失败' : 'Connection failed')),
   });
 
   const disconnectMutation = useMutation({
     mutationFn: disconnectIntegration,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '断开连接失败' : 'Disconnect failed')),
   });
 
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '删除用户失败' : 'Failed to delete user')),
   });
 
   const models = modelsData?.data || [];
@@ -167,6 +173,10 @@ export function SettingsPage() {
           {language === 'zh' ? '配置模型、系统集成和用户管理' : 'Configure models, integrations and user management'}
         </p>
       </div>
+
+      {settingsError && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{settingsError}</p>
+      )}
 
       <Tabs defaultValue="model" orientation="horizontal" className="w-full">
         <TabsList className="flex flex-row w-full justify-start border-b border-slate-200 bg-transparent p-0 h-auto mb-6">

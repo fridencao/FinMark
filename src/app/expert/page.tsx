@@ -24,6 +24,8 @@ const expertModules = [
 export function ExpertPage() {
   const { language } = useAppStore();
   const [activeModule, setActiveModule] = useState('audience');
+  const [audienceStats, setAudienceStats] = useState({ size: 8500, reachRate: 65, estimated: 5525 });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const t = language === 'zh' ? {
     title: '专家模式',
@@ -185,8 +187,21 @@ export function ExpertPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-4">
-              <Button variant="outline" className="rounded-xl">{t.clear}</Button>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">{t.apply}</Button>
+              <Button variant="outline" className="rounded-xl" onClick={() => setAudienceStats({ size: 0, reachRate: 0, estimated: 0 })}>{t.clear}</Button>
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl"
+                onClick={() => {
+                  setIsGenerating(true);
+                  setTimeout(() => {
+                    const size = Math.floor(Math.random() * 20000) + 1000;
+                    const rate = Math.floor(Math.random() * 30) + 50;
+                    setAudienceStats({ size, reachRate: rate, estimated: Math.floor(size * rate / 100) });
+                    setIsGenerating(false);
+                  }, 800);
+                }}
+              >
+                {isGenerating ? (language === 'zh' ? '生成中...' : 'Generating...') : t.apply}
+              </Button>
             </div>
           </div>
 
@@ -194,15 +209,15 @@ export function ExpertPage() {
           <div className="mt-8 pt-8 border-t border-slate-100">
             <div className="grid grid-cols-3 gap-6">
               <div className="p-4 bg-slate-50 rounded-xl text-center">
-                <div className="text-2xl font-bold text-indigo-600">8,500</div>
+                <div className="text-2xl font-bold text-indigo-600">{audienceStats.size.toLocaleString()}</div>
                 <div className="text-xs text-slate-500 mt-1">{t.audienceSize}</div>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl text-center">
-                <div className="text-2xl font-bold text-emerald-600">65%</div>
+                <div className="text-2xl font-bold text-emerald-600">{audienceStats.reachRate}%</div>
                 <div className="text-xs text-slate-500 mt-1">{language === 'zh' ? '预计触达率' : 'Est. Reach Rate'}</div>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl text-center">
-                <div className="text-2xl font-bold text-blue-600">5,525</div>
+                <div className="text-2xl font-bold text-blue-600">{audienceStats.estimated.toLocaleString()}</div>
                 <div className="text-xs text-slate-500 mt-1">{t.estimatedReach}</div>
               </div>
             </div>

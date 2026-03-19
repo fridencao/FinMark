@@ -22,6 +22,7 @@ export function BrainPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('usage');
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { data: atomsData, isLoading } = useQuery({
     queryKey: ['atoms', typeFilter],
@@ -32,7 +33,12 @@ export function BrainPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteAtom,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['atoms'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['atoms'] });
+    },
+    onError: (err: any) => {
+      setDeleteError(err?.response?.data?.message || (language === 'zh' ? '删除失败' : 'Failed to delete'));
+    },
   });
 
   const t = language === 'zh' ? {
@@ -137,6 +143,10 @@ export function BrainPage() {
         </TabsList>
       </Tabs>
 
+      {deleteError && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{deleteError}</p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredAtoms.map(atom => (
           <Card key={atom.id} className="p-6 space-y-4 hover:shadow-md transition-shadow">
@@ -199,7 +209,10 @@ export function BrainPage() {
                 variant="ghost"
                 size="sm"
                 className="text-xs text-red-500 rounded-xl"
-                onClick={() => deleteMutation.mutate(atom.id)}
+                onClick={() => {
+                  setDeleteError(null);
+                  deleteMutation.mutate(atom.id);
+                }}
                 disabled={deleteMutation.isPending}
               >
                 {t.delete}

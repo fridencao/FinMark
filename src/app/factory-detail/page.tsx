@@ -35,9 +35,16 @@ export function FactoryDetailPage() {
     enabled: !!id,
   });
 
+  const [executeError, setExecuteError] = useState<string | null>(null);
+
   const executeMutation = useMutation({
     mutationFn: () => executeScenario(id!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenario', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scenario', id] });
+    },
+    onError: (err: any) => {
+      setExecuteError(err?.response?.data?.message || (language === 'zh' ? '执行失败' : 'Execution failed'));
+    },
   });
 
   const scenario = scenarioData?.data;
@@ -134,7 +141,10 @@ export function FactoryDetailPage() {
           <Button
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => executeMutation.mutate()}
+            onClick={() => {
+              setExecuteError(null);
+              executeMutation.mutate();
+            }}
             disabled={executeMutation.isPending}
           >
             <Play className="w-4 h-4 mr-1" />
@@ -189,6 +199,10 @@ export function FactoryDetailPage() {
           </div>
         </Card>
       </div>
+
+      {executeError && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{executeError}</p>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

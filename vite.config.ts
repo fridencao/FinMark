@@ -18,5 +18,17 @@ export default defineConfig(({mode}) => {
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
     },
+    build: {
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'motion-vendor': ['motion'],
+            'data-vendor': ['@tanstack/react-query', 'zustand', 'axios'],
+          },
+        },
+      },
+    },
   };
 });
