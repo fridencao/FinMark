@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 
 interface Message {
   role: 'user' | 'ai';
@@ -37,6 +36,15 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
   const [messages, setMessages] = useState<Message[]>(defaultMessages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const timeoutRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const t = language === 'zh' ? {
     title: 'RM Copilot 话术对练',
@@ -52,14 +60,13 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    
+
     const newMessage: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, newMessage]);
     setInput('');
     setIsLoading(true);
 
-    // 模拟 AI 响应
-    setTimeout(() => {
+    timeoutRef.current = window.setTimeout(() => {
       const responses = language === 'zh' ? [
         '理解您的需求。针对向客户推荐ESG基金，我建议采用"价值投资+社会责任"的沟通方式。首先强调ESG基金的长期稳健收益，其次突出其对环境和社会贡献的社会价值。',
         '客户抗拒推销是常见问题。建议采用"需求挖掘"而非"产品推荐"的方式开场。例如："王总，您最近有没有关注到市场动向？"先建立对话，再逐步引入产品。',
@@ -131,7 +138,7 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
               </Button>
             ))}
           </div>
-          
+
           <div className="flex gap-2">
             <Input
               value={input}

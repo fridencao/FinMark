@@ -1,5 +1,7 @@
 import api from './api';
 
+export type StrategyAtom = Atom;
+
 export interface Atom {
   id: string;
   name: string;

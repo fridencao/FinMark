@@ -24,7 +24,9 @@ api.interceptors.response.use(
   (error) => {
     if (!error.response) {
       const message = '网络连接失败，请检查网络';
-      console.error('[API]', message);
+      if (import.meta.env.DEV) {
+        console.error('[API]', message);
+      }
       return Promise.reject(new Error(message));
     }
 
@@ -39,7 +41,9 @@ api.interceptors.response.use(
     }
 
     const message = apiError || `请求失败 (${status})`;
-    console.error('[API Error]', message);
+    if (import.meta.env.DEV) {
+      console.error('[API Error]', message);
+    }
     return Promise.reject(new Error(message));
   }
 );
