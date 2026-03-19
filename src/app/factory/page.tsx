@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Factory, Plus, Wand2, Users, Zap, TrendingUp, ShieldCheck, Sparkles, Edit3, Zap as Execute, Search, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Factory, Plus, Wand2, Users, Zap, TrendingUp, ShieldCheck, Sparkles, Edit3, Zap as Execute, Search, Trash2, Loader2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,26 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface Scenario {
-  id: string;
-  title: string;
-  goal: string;
-  category: string;
-  icon: string;
-  color: string;
-  complianceScore?: number;
-  riskLevel?: string;
-}
-
-const defaultScenarios: Scenario[] = [
-  { id: 'churn', title: '流失挽回', goal: '识别近30天资产下降超过30%的客户并进行挽回营销', category: 'recovery', icon: 'Users', color: 'bg-rose-50', complianceScore: 98, riskLevel: 'low' },
-  { id: 'new_fund', title: '新发基金推广', goal: '针对有理财经验且风险偏好为中高风险的客户推广新发ESG基金', category: 'growth', icon: 'Zap', color: 'bg-indigo-50', complianceScore: 95, riskLevel: 'medium' },
-  { id: 'credit', title: '信用卡分期提升', goal: '筛选有大额消费记录但未办理分期的客户，推送分期优惠券', category: 'growth', icon: 'TrendingUp', color: 'bg-emerald-50', complianceScore: 99, riskLevel: 'low' },
-  { id: 'pension', title: '个人养老金开户', goal: '针对符合开户条件且未开立养老金账户的代发工资客户进行推广', category: 'acquisition', icon: 'ShieldCheck', color: 'bg-orange-50', complianceScore: 97, riskLevel: 'low' },
-];
+import { getScenarios, getDefaultScenarios, createScenario, deleteScenario, Scenario } from '@/services/scenario';
 
 const categories = (lang: 'zh' | 'en') => [
   { value: 'all', label: lang === 'zh' ? '全部' : 'All' },
@@ -40,12 +23,34 @@ const categories = (lang: 'zh' | 'en') => [
 
 export function FactoryPage() {
   const { language } = useAppStore();
-  const [scenarios, setScenarios] = useState<Scenario[]>(defaultScenarios);
+  const queryClient = useQueryClient();
+
+  const { data: scenariosData, isLoading: isLoadingScenarios } = useQuery({
+    queryKey: ['scenarios'],
+    queryFn: () => getScenarios(),
+  });
+
+  const { data: defaultScenariosData } = useQuery({
+    queryKey: ['scenarios', 'defaults'],
+    queryFn: getDefaultScenarios,
+  });
+
+  const scenarios = scenariosData?.data || defaultScenariosData?.data || [];
+
+  const createMutation = useMutation({
+    mutationFn: createScenario,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenarios'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteScenario,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenarios'] }),
+  });
+
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAIWizard, setShowAIWizard] = useState(false);
   const [aiInput, setAiInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const t = language === 'zh' ? {
     title: '场景工厂',
@@ -115,47 +120,57 @@ export function FactoryPage() {
     searchPlaceholder: 'Search scenarios...',
   };
 
-  const getIcon = (iconName: string) => {
+  const getIcon = (iconName?: string) => {
     switch (iconName) {
       case 'Users': return <Users className="w-5 h-5" />;
       case 'Zap': return <Zap className="w-5 h-5" />;
       case 'TrendingUp': return <TrendingUp className="w-5 h-5" />;
       case 'ShieldCheck': return <ShieldCheck className="w-5 h-5" />;
+      case 'Sparkles': return <Sparkles className="w-5 h-5" />;
       default: return <Zap className="w-5 h-5" />;
     }
   };
 
   const filteredScenarios = scenarios.filter(s => {
     const matchCategory = activeCategory === 'all' || s.category === activeCategory;
-    const matchSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                        s.goal.toLowerCase().includes(searchTerm.toLowerCase());
     return matchCategory && matchSearch;
   });
 
   const handleAIGenerate = () => {
     if (!aiInput.trim()) return;
-    setIsGenerating(true);
-    setTimeout(() => {
-      const newScenario: Scenario = {
-        id: Date.now().toString(),
-        title: aiInput.length > 20 ? aiInput.substring(0, 20) + '...' : aiInput,
-        goal: aiInput,
-        category: 'growth',
-        icon: 'Sparkles',
-        color: 'bg-violet-50',
-        complianceScore: 95,
-        riskLevel: 'low'
-      };
-      setScenarios(prev => [...prev, newScenario]);
-      setIsGenerating(false);
-      setShowAIWizard(false);
-      setAiInput('');
-    }, 2000);
+    createMutation.mutate(
+      { title: aiInput.substring(0, 30), goal: aiInput, category: 'growth' },
+      {
+        onSuccess: () => {
+          setShowAIWizard(false);
+          setAiInput('');
+        },
+      }
+    );
   };
+
+  if (isLoadingScenarios) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
+            <p className="text-slate-500">{t.subtitle}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
@@ -177,7 +192,6 @@ export function FactoryPage() {
         </div>
       </div>
 
-      {/* Market Inspiration */}
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -209,7 +223,6 @@ export function FactoryPage() {
         </div>
       </div>
 
-      {/* Search and Filter */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -229,13 +242,12 @@ export function FactoryPage() {
         </Tabs>
       </div>
 
-      {/* Scenario Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredScenarios.map(scenario => (
           <Card key={scenario.id} className="p-6 space-y-4 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scenario.color}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scenario.color || 'bg-slate-100'}`}>
                   {getIcon(scenario.icon)}
                 </div>
                 <h4 className="font-semibold text-base">{scenario.title}</h4>
@@ -244,22 +256,37 @@ export function FactoryPage() {
                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600">
                   <Edit3 className="w-4 h-4" />
                 </Button>
+                {scenario.isCustom && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-400 hover:text-red-500"
+                    onClick={() => deleteMutation.mutate(scenario.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-emerald-600">
                   <Execute className="w-4 h-4" />
                 </Button>
               </div>
             </div>
             <p className="text-sm text-slate-500 leading-relaxed">{scenario.goal}</p>
-            
+
             <div className="flex items-center gap-4 py-2">
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-xl">
-                <ShieldCheck className="w-3 h-3" />
-                {t.complianceScore}: {scenario.complianceScore}
-              </div>
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-xl">
-                <Zap className="w-3 h-3" />
-                {t.riskLevel}: {scenario.riskLevel === 'low' ? t.lowRisk : scenario.riskLevel === 'medium' ? t.mediumRisk : t.highRisk}
-              </div>
+              {scenario.complianceScore !== undefined && (
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-xl">
+                  <ShieldCheck className="w-3 h-3" />
+                  {t.complianceScore}: {scenario.complianceScore}
+                </div>
+              )}
+              {scenario.riskLevel && (
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-xl">
+                  <Zap className="w-3 h-3" />
+                  {t.riskLevel}: {scenario.riskLevel === 'low' ? t.lowRisk : scenario.riskLevel === 'medium' ? t.mediumRisk : t.highRisk}
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-slate-50 grid grid-cols-2 gap-2">
@@ -270,7 +297,6 @@ export function FactoryPage() {
         ))}
       </div>
 
-      {/* AI Wizard Dialog */}
       <Dialog open={showAIWizard} onOpenChange={setShowAIWizard}>
         <DialogContent className="max-w-xl">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-indigo-600 text-white rounded-t-xl -mx-6 -mt-6 mb-6">
@@ -291,12 +317,12 @@ export function FactoryPage() {
             />
             <Button
               onClick={handleAIGenerate}
-              disabled={isGenerating || !aiInput.trim()}
+              disabled={createMutation.isPending || !aiInput.trim()}
               className="w-full py-4 bg-indigo-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700"
             >
-              {isGenerating ? (
+              {createMutation.isPending ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   {t.generating}
                 </>
               ) : (

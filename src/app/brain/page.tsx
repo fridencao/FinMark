@@ -1,31 +1,13 @@
 import React, { useState } from 'react';
-import { Brain, Plus, Search, Zap, MessageCircle, FileText, ShieldAlert, Filter, ArrowUpDown } from 'lucide-react';
+import { Brain, Plus, Search, Zap, MessageCircle, FileText, ShieldAlert, Trash2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface StrategyAtom {
-  id: string;
-  name: string;
-  type: 'hook' | 'channel' | 'content' | 'risk';
-  description: string;
-  successRate: number;
-  usageCount: number;
-  tags: string[];
-}
-
-const defaultAtoms: StrategyAtom[] = [
-  { id: '1', name: '高收益钩子', type: 'hook', description: '使用高于市场平均水平的理财收益率吸引客户点击。', successRate: 12, usageCount: 1240, tags: ['理财', '高收益'] },
-  { id: '2', name: '企微+短信组合', type: 'channel', description: '先通过企微触达，未读客户在4小时后自动补发短信。', successRate: 25, usageCount: 850, tags: ['全渠道', '自动化'] },
-  { id: '3', name: '温情关怀模版', type: 'content', description: '以节日或生日为契机，结合资产变动提醒的温情文案。', successRate: 8, usageCount: 2100, tags: ['情感营销', '存量挽回'] },
-  { id: '4', name: '风险承受匹配', type: 'risk', description: '强制校验客户风险等级，仅向匹配的客户展示高风险产品。', successRate: 99, usageCount: 5000, tags: ['合规', '风控'] },
-  { id: '5', name: '限时优惠刺激', type: 'hook', description: '使用限时优惠、限量抢购等方式制造紧迫感。', successRate: 18, usageCount: 920, tags: ['促销', '紧迫感'] },
-  { id: '6', name: 'APP Push+外呼', type: 'channel', description: 'APP推送触达，未接通客户由客户经理外呼跟进。', successRate: 22, usageCount: 680, tags: ['全渠道', '人工介入'] },
-];
+import { getAtoms, createAtom, deleteAtom, Atom } from '@/services/strategy';
 
 const typeConfig = (lang: 'zh' | 'en') => ({
   hook: { label: lang === 'zh' ? '钩子' : 'Hook', color: 'bg-orange-100 text-orange-700' },
@@ -36,10 +18,22 @@ const typeConfig = (lang: 'zh' | 'en') => ({
 
 export function BrainPage() {
   const { language } = useAppStore();
-  const [atoms, setAtoms] = useState<StrategyAtom[]>(defaultAtoms);
-  const [searchTerm, setSearchTerm] = useState('');
+  const queryClient = useQueryClient();
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('usage');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: atomsData, isLoading } = useQuery({
+    queryKey: ['atoms', typeFilter],
+    queryFn: () => getAtoms(typeFilter !== 'all' ? { type: typeFilter } : {}),
+  });
+
+  const atoms = atomsData?.data || [];
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAtom,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['atoms'] }),
+  });
 
   const t = language === 'zh' ? {
     title: '策略原子库',
@@ -57,10 +51,6 @@ export function BrainPage() {
     addScenario: '添加场景',
     edit: '编辑',
     delete: '删除',
-    sortBy: '排序',
-    usage: '使用次数',
-    rate: '成功率',
-    name: '名称',
   } : {
     title: 'Strategy Brain',
     subtitle: 'Manage and reuse marketing strategy components',
@@ -77,30 +67,43 @@ export function BrainPage() {
     addScenario: 'Add Scenario',
     edit: 'Edit',
     delete: 'Delete',
-    sortBy: 'Sort by',
-    usage: 'Usage',
-    rate: 'Success Rate',
-    name: 'Name',
   };
 
   const types = typeConfig(language);
 
   const filteredAtoms = atoms
     .filter(atom => {
-      const matchType = typeFilter === 'all' || atom.type === typeFilter;
-      const matchSearch = atom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        atom.description.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchType && matchSearch;
+      const matchSearch = !searchTerm ||
+        atom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (atom.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+      return matchSearch;
     })
     .sort((a, b) => {
       if (sortBy === 'usage') return b.usageCount - a.usageCount;
-      if (sortBy === 'rate') return b.successRate - a.successRate;
+      if (sortBy === 'rate') return (b.successRate || 0) - (a.successRate || 0);
       return 0;
     });
 
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
+            <p className="text-slate-500">{t.subtitle}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
@@ -112,7 +115,6 @@ export function BrainPage() {
         </Button>
       </div>
 
-      {/* Filter Bar */}
       <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -123,33 +125,8 @@ export function BrainPage() {
             className="pl-10"
           />
         </div>
-        
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-40 rounded-xl">
-            <SelectValue placeholder={t.all} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t.all}</SelectItem>
-            <SelectItem value="hook">{t.hook}</SelectItem>
-            <SelectItem value="channel">{t.channel}</SelectItem>
-            <SelectItem value="content">{t.content}</SelectItem>
-            <SelectItem value="risk">{t.risk}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-40 rounded-xl">
-            <SelectValue placeholder={t.sortBy} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="usage">{t.usage}</SelectItem>
-            <SelectItem value="rate">{t.rate}</SelectItem>
-            <SelectItem value="name">{t.name}</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      {/* Atom Type Tabs */}
       <Tabs value={typeFilter} onValueChange={setTypeFilter}>
         <TabsList>
           <TabsTrigger value="all">{t.all}</TabsTrigger>
@@ -160,7 +137,6 @@ export function BrainPage() {
         </TabsList>
       </Tabs>
 
-      {/* Atom Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredAtoms.map(atom => (
           <Card key={atom.id} className="p-6 space-y-4 hover:shadow-md transition-shadow">
@@ -190,7 +166,7 @@ export function BrainPage() {
             <div className="flex items-center gap-4 text-xs">
               <div>
                 <span className="text-slate-400">{t.successRate}: </span>
-                <span className="font-bold text-emerald-600">{atom.successRate}%</span>
+                <span className="font-bold text-emerald-600">{atom.successRate !== undefined ? `${atom.successRate}%` : '—'}</span>
               </div>
               <div>
                 <span className="text-slate-400">{t.usageCount}: </span>
@@ -219,7 +195,15 @@ export function BrainPage() {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="ghost" size="sm" className="text-xs rounded-xl">{t.edit}</Button>
-              <Button variant="ghost" size="sm" className="text-xs text-red-500 rounded-xl">{t.delete}</Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-500 rounded-xl"
+                onClick={() => deleteMutation.mutate(atom.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {t.delete}
+              </Button>
             </div>
           </Card>
         ))}

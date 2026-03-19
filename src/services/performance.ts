@@ -3,11 +3,15 @@ import api from './api';
 export interface MetricData {
   reach: number;
   reachRate: number;
+  reachChange: number;
   response: number;
   responseRate: number;
+  responseChange: number;
   conversion: number;
   conversionRate: number;
+  conversionChange: number;
   roi: number;
+  roiChange: number;
   cost: number;
 }
 
@@ -29,24 +33,16 @@ export interface AlarmRule {
   createdAt: string;
 }
 
-export const getDashboardMetrics = (params: {
-  startDate: string;
-  endDate: string;
-  channel?: string;
-  scenario?: string;
-}) => api.get('/performance/dashboard', { params });
+export const getDashboardMetrics = (params?: { timeRange?: string }) =>
+  api.get('/performance/dashboard', { params });
 
-export const getDashboardTrend = (params: {
-  startDate: string;
-  endDate: string;
-  metric: string;
-  granularity: 'day' | 'week' | 'month';
-}) => api.get('/performance/trend', { params });
+export const getDashboardTrend = (params?: { timeRange?: string }) =>
+  api.get('/performance/trend', { params });
 
-export const getDashboardCharts = (params: {
-  startDate: string;
-  endDate: string;
-  chartType: 'channel' | 'segment' | 'activity';
+export const getDashboardCharts = (params?: {
+  startDate?: string;
+  endDate?: string;
+  chartType?: 'channel' | 'segment' | 'activity';
 }) => api.get('/performance/charts', { params });
 
 export const getActivityReports = (params?: {

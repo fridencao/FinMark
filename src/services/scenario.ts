@@ -2,10 +2,9 @@ import api from './api';
 
 export interface Scenario {
   id: string;
-  name: string;
-  description?: string;
-  category: string;
+  title: string;
   goal: string;
+  category: string;
   icon?: string;
   color?: string;
   insightConfig?: {

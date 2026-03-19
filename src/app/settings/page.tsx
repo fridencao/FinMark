@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Edit, Trash2, RefreshCw, Check, X, ExternalLink } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,15 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PermissionManager } from '@/components/settings/PermissionManager';
+import { getModels, createModel, deleteModel, testModel, setDefaultModel, getIntegrations, connectIntegration, disconnectIntegration } from '@/services/settings';
 import type { Role, Permission } from '@/services/user';
-
-interface Model {
-  id: string;
-  name: string;
-  type: string;
-  status: 'enabled' | 'disabled';
-  isDefault: boolean;
-}
 
 interface Integration {
   id: string;
@@ -28,26 +22,6 @@ interface Integration {
   status: 'connected' | 'disconnected' | 'error';
   lastSync?: string;
 }
-
-const defaultModels: Model[] = [
-  { id: '1', name: 'Gemini Pro', type: 'api', status: 'enabled', isDefault: true },
-  { id: '2', name: 'ERNIE Bot', type: 'api', status: 'enabled', isDefault: false },
-  { id: '3', name: 'Qwen Max', type: 'api', status: 'disabled', isDefault: false },
-];
-
-const defaultIntegrations: Integration[] = [
-  { id: 'crm', name: 'CRM系统', type: 'crm', status: 'connected', lastSync: '2024-01-15 10:30' },
-  { id: 'rights', name: '权益系统', type: 'rights', status: 'connected', lastSync: '2024-01-15 10:28' },
-  { id: 'channel', name: '渠道系统', type: 'channel', status: 'disconnected' },
-  { id: 'bigdata', name: '大数据平台', type: 'bigdata', status: 'connected', lastSync: '2024-01-15 10:30' },
-];
-
-const defaultUsers = [
-  { id: '1', username: 'admin', name: '张三', role: '管理员', status: 'enabled', lastLogin: '2024-01-15 09:30' },
-  { id: '2', username: 'manager1', name: '李四', role: '业务经理', status: 'enabled', lastLogin: '2024-01-14 16:20' },
-  { id: '3', username: 'operator1', name: '王五', role: '运营人员', status: 'enabled', lastLogin: '2024-01-15 11:00' },
-  { id: '4', username: 'readonly1', name: '赵六', role: '只读用户', status: 'disabled', lastLogin: '2024-01-10 14:00' },
-];
 
 const defaultPermissions: Permission[] = [
   { id: 'user_view', name: '查看用户', code: 'user:view', category: '用户管理', description: '查看用户列表和详情' },
@@ -76,10 +50,46 @@ const defaultRoles: Role[] = [
 
 export function SettingsPage() {
   const { language } = useAppStore();
-  const [models, setModels] = useState<Model[]>(defaultModels);
-  const [integrations] = useState<Integration[]>(defaultIntegrations);
+  const queryClient = useQueryClient();
   const [roles, setRoles] = useState<Role[]>(defaultRoles);
   const [permissions] = useState<Permission[]>(defaultPermissions);
+
+  const { data: modelsData, isLoading: modelsLoading } = useQuery({
+    queryKey: ['models'],
+    queryFn: () => getModels(),
+  });
+
+  const { data: integrationsData, isLoading: integrationsLoading } = useQuery({
+    queryKey: ['integrations'],
+    queryFn: () => getIntegrations(),
+  });
+
+  const deleteModelMutation = useMutation({
+    mutationFn: deleteModel,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
+  });
+
+  const setDefaultMutation = useMutation({
+    mutationFn: setDefaultModel,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
+  });
+
+  const testModelMutation = useMutation({
+    mutationFn: testModel,
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: connectIntegration,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: disconnectIntegration,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+  });
+
+  const models = modelsData?.data || [];
+  const integrations = (integrationsData?.data || []) as Integration[];
 
   const t = language === 'zh' ? {
     modelConfig: '模型配置',
@@ -144,9 +154,15 @@ export function SettingsPage() {
     }
   };
 
+  const defaultUsers = [
+    { id: '1', username: 'admin', name: '张三', role: '管理员', status: 'enabled', lastLogin: '2024-01-15 09:30' },
+    { id: '2', username: 'manager1', name: '李四', role: '业务经理', status: 'enabled', lastLogin: '2024-01-14 16:20' },
+    { id: '3', username: 'operator1', name: '王五', role: '运营人员', status: 'enabled', lastLogin: '2024-01-15 11:00' },
+    { id: '4', username: 'readonly1', name: '赵六', role: '只读用户', status: 'disabled', lastLogin: '2024-01-10 14:00' },
+  ];
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-slate-900">{language === 'zh' ? '系统设置' : 'Settings'}</h2>
         <p className="text-slate-500">
@@ -174,7 +190,6 @@ export function SettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Model Config */}
         <TabsContent value="model" className="space-y-6">
           <div className="flex justify-end">
             <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
@@ -184,88 +199,128 @@ export function SettingsPage() {
           </div>
 
           <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{language === 'zh' ? '模型名称' : 'Model Name'}</TableHead>
-                  <TableHead>{language === 'zh' ? '类型' : 'Type'}</TableHead>
-                  <TableHead>{language === 'zh' ? '状态' : 'Status'}</TableHead>
-                  <TableHead>{language === 'zh' ? '默认' : 'Default'}</TableHead>
-                  <TableHead className="text-right">{language === 'zh' ? '操作' : 'Actions'}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {models.map(model => (
-                  <TableRow key={model.id}>
-                    <TableCell className="font-medium">{model.name}</TableCell>
-                    <TableCell>{model.type === 'api' ? 'API' : 'Local'}</TableCell>
-                    <TableCell>{getStatusBadge(model.status)}</TableCell>
-                    <TableCell>
-                      {model.isDefault && <Badge className="bg-indigo-100 text-indigo-700">Default</Badge>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="ghost" size="sm" className="rounded-xl">{t.test}</Button>
-                        <Button variant="ghost" size="sm" className="rounded-xl">{t.edit}</Button>
-                        <Button variant="ghost" size="sm" className="text-red-500 rounded-xl">{t.delete}</Button>
-                      </div>
-                    </TableCell>
+            {modelsLoading ? (
+              <div className="p-6 space-y-4">
+                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === 'zh' ? '模型名称' : 'Model Name'}</TableHead>
+                    <TableHead>{language === 'zh' ? '类型' : 'Type'}</TableHead>
+                    <TableHead>{language === 'zh' ? '状态' : 'Status'}</TableHead>
+                    <TableHead>{language === 'zh' ? '默认' : 'Default'}</TableHead>
+                    <TableHead className="text-right">{language === 'zh' ? '操作' : 'Actions'}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {models.map((model: any) => (
+                    <TableRow key={model.id}>
+                      <TableCell className="font-medium">{model.name}</TableCell>
+                      <TableCell>{model.type === 'api' ? 'API' : 'Local'}</TableCell>
+                      <TableCell>{getStatusBadge(model.status)}</TableCell>
+                      <TableCell>
+                        {model.isDefault && <Badge className="bg-indigo-100 text-indigo-700">Default</Badge>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => testModelMutation.mutate(model.id)}
+                            disabled={testModelMutation.isPending}
+                          >
+                            {t.test}
+                          </Button>
+                          <Button variant="ghost" size="sm" className="rounded-xl">{t.edit}</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 rounded-xl"
+                            onClick={() => deleteModelMutation.mutate(model.id)}
+                            disabled={deleteModelMutation.isPending}
+                          >
+                            {t.delete}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </Card>
         </TabsContent>
 
-        {/* System Integration */}
         <TabsContent value="integration" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {integrations.map(integration => (
-              <Card key={integration.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                      <Database className="w-5 h-5 text-slate-600" />
+            {integrationsLoading ? (
+              <>
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
+                ))}
+              </>
+            ) : (
+              integrations.map(integration => (
+                <Card key={integration.id} className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                        <Database className="w-5 h-5 text-slate-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold">{integration.name}</h4>
+                        <p className="text-xs text-slate-500">{integration.type}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold">{integration.name}</h4>
-                      <p className="text-xs text-slate-500">{integration.type}</p>
-                    </div>
+                    {getStatusBadge(integration.status)}
                   </div>
-                  {getStatusBadge(integration.status)}
-                </div>
-                
-                {integration.lastSync && (
-                  <p className="text-xs text-slate-400 mb-4">
-                    {t.lastSync}: {integration.lastSync}
-                  </p>
-                )}
-                
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 rounded-xl">
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    {language === 'zh' ? '测试连接' : 'Test'}
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1 rounded-xl">
-                    <SettingsIcon className="w-4 h-4 mr-1" />
-                    {language === 'zh' ? '配置' : 'Config'}
-                  </Button>
-                  {integration.status === 'connected' ? (
-                    <Button variant="outline" size="sm" className="text-red-500 rounded-xl">
-                      {t.disconnect}
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" className="text-emerald-500 rounded-xl">
-                      {t.connect}
-                    </Button>
+
+                  {integration.lastSync && (
+                    <p className="text-xs text-slate-400 mb-4">
+                      {t.lastSync}: {integration.lastSync}
+                    </p>
                   )}
-                </div>
-              </Card>
-            ))}
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 rounded-xl">
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                      {language === 'zh' ? '测试连接' : 'Test'}
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 rounded-xl">
+                      <SettingsIcon className="w-4 h-4 mr-1" />
+                      {language === 'zh' ? '配置' : 'Config'}
+                    </Button>
+                    {integration.status === 'connected' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-500 rounded-xl"
+                        onClick={() => disconnectMutation.mutate(integration.id)}
+                        disabled={disconnectMutation.isPending}
+                      >
+                        {t.disconnect}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-emerald-500 rounded-xl"
+                        onClick={() => connectMutation.mutate(integration.id)}
+                        disabled={connectMutation.isPending}
+                      >
+                        {t.connect}
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 
-        {/* User Management */}
         <TabsContent value="users" className="space-y-6">
           <div className="flex gap-4">
             <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
@@ -311,7 +366,6 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Permission */}
         <TabsContent value="permission">
           <PermissionManager
             roles={roles}

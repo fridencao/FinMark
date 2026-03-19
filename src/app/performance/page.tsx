@@ -1,25 +1,16 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Download, Calendar, Filter, ArrowUpRight } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Download, Calendar, ArrowUpRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+import {
+  LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-
-const trendData = [
-  { name: '周一', reach: 4000, response: 2400, conversion: 240 },
-  { name: '周二', reach: 3000, response: 1398, conversion: 210 },
-  { name: '周三', reach: 2000, response: 9800, conversion: 290 },
-  { name: '周四', reach: 2780, response: 3908, conversion: 200 },
-  { name: '周五', reach: 1890, response: 4800, conversion: 181 },
-  { name: '周六', reach: 2390, response: 3800, conversion: 250 },
-  { name: '周日', reach: 3490, response: 4300, conversion: 210 },
-];
+import { getDashboardMetrics, getDashboardTrend, getActivityReports } from '@/services/performance';
 
 const channelData = [
   { name: '企微', value: 65, color: '#10b981' },
@@ -35,16 +26,27 @@ const segmentData = [
   { name: '退休养老', value: 10, color: '#f59e0b' },
 ];
 
-const activityData = [
-  { name: '流失挽回', reach: '8,500', response: '12.5%', conversion: '1.2%', roi: '2.8', status: 'completed' },
-  { name: '新发基金推广', reach: '12,000', response: '15.2%', conversion: '2.1%', roi: '3.5', status: 'running' },
-  { name: '信用卡分期', reach: '6,800', response: '8.3%', conversion: '0.8%', roi: '1.9', status: 'completed' },
-  { name: '养老金开户', reach: '4,200', response: '18.5%', conversion: '3.2%', roi: '4.1', status: 'running' },
-];
-
 export function PerformancePage() {
   const { language } = useAppStore();
   const [timeRange, setTimeRange] = useState('week');
+
+  const { data: metricsData, isLoading: metricsLoading } = useQuery({
+    queryKey: ['performance', 'metrics', timeRange],
+    queryFn: () => getDashboardMetrics({ timeRange }),
+    enabled: false,
+  });
+
+  const { data: trendDataRaw } = useQuery({
+    queryKey: ['performance', 'trend', timeRange],
+    queryFn: () => getDashboardTrend({ timeRange }),
+    enabled: false,
+  });
+
+  const { data: reportsData } = useQuery({
+    queryKey: ['performance', 'reports'],
+    queryFn: () => getActivityReports(),
+    enabled: false,
+  });
 
   const t = language === 'zh' ? {
     title: '效果仪表盘',
@@ -90,16 +92,43 @@ export function PerformancePage() {
     viewDetails: 'View Details',
   };
 
-  const metrics = [
+  const metricsRaw = metricsData?.data;
+  const metrics = metricsRaw ? [
+    { title: t.reach, value: metricsRaw.reach?.toLocaleString() || '—', change: metricsRaw.reachChange || 0, up: (metricsRaw.reachChange || 0) >= 0 },
+    { title: t.response, value: metricsRaw.responseRate ? `${metricsRaw.responseRate}%` : '—', change: metricsRaw.responseChange || 0, up: (metricsRaw.responseChange || 0) >= 0 },
+    { title: t.conversion, value: metricsRaw.conversionRate ? `${metricsRaw.conversionRate}%` : '—', change: metricsRaw.conversionChange || 0, up: (metricsRaw.conversionChange || 0) >= 0 },
+    { title: t.roi, value: metricsRaw.roi?.toString() || '—', change: metricsRaw.roiChange || 0, up: (metricsRaw.roiChange || 0) >= 0 },
+  ] : [
     { title: t.reach, value: '85,000', change: 12.5, up: true },
     { title: t.response, value: '12.5%', change: 2.3, up: true },
     { title: t.conversion, value: '1.2%', change: -0.3, up: false },
     { title: t.roi, value: '2.8', change: 0.5, up: true },
   ];
 
+  const trendData = trendDataRaw?.data?.map((d: any) => ({
+    name: d.date,
+    reach: d.reach,
+    response: d.response,
+    conversion: d.conversion,
+  })) || [
+    { name: '周一', reach: 4000, response: 2400, conversion: 240 },
+    { name: '周二', reach: 3000, response: 1398, conversion: 210 },
+    { name: '周三', reach: 2000, response: 9800, conversion: 290 },
+    { name: '周四', reach: 2780, response: 3908, conversion: 200 },
+    { name: '周五', reach: 1890, response: 4800, conversion: 181 },
+    { name: '周六', reach: 2390, response: 3800, conversion: 250 },
+    { name: '周日', reach: 3490, response: 4300, conversion: 210 },
+  ];
+
+  const activityData = reportsData?.data || [
+    { name: '流失挽回', reach: '8,500', response: '12.5%', conversion: '1.2%', roi: '2.8', status: 'completed' },
+    { name: '新发基金推广', reach: '12,000', response: '15.2%', conversion: '2.1%', roi: '3.5', status: 'running' },
+    { name: '信用卡分期', reach: '6,800', response: '8.3%', conversion: '0.8%', roi: '1.9', status: 'completed' },
+    { name: '养老金开户', reach: '4,200', response: '18.5%', conversion: '3.2%', roi: '4.1', status: 'running' },
+  ];
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
@@ -122,7 +151,6 @@ export function PerformancePage() {
         </div>
       </div>
 
-      {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric, idx) => (
           <Card key={idx} className="p-6">
@@ -142,9 +170,7 @@ export function PerformancePage() {
         ))}
       </div>
 
-      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Trend Chart */}
         <Card className="p-6 lg:col-span-2">
           <h3 className="font-bold text-lg mb-6">{t.reachTrend}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -152,9 +178,7 @@ export function PerformancePage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
               <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
               <Legend />
               <Line type="monotone" dataKey="reach" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} name={t.reach} />
               <Line type="monotone" dataKey="response" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} name={t.response} />
@@ -163,7 +187,6 @@ export function PerformancePage() {
           </ResponsiveContainer>
         </Card>
 
-        {/* Channel Distribution */}
         <Card className="p-6">
           <h3 className="font-bold text-lg mb-6">{t.channelDist}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -188,9 +211,7 @@ export function PerformancePage() {
         </Card>
       </div>
 
-      {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Segment Distribution */}
         <Card className="p-6">
           <h3 className="font-bold text-lg mb-6">{t.segmentDist}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -212,7 +233,6 @@ export function PerformancePage() {
           </ResponsiveContainer>
         </Card>
 
-        {/* Activity Ranking */}
         <Card className="p-6 lg:col-span-2">
           <h3 className="font-bold text-lg mb-6">{t.activityRank}</h3>
           <div className="overflow-x-auto">
@@ -229,7 +249,7 @@ export function PerformancePage() {
                 </tr>
               </thead>
               <tbody>
-                {activityData.map((activity, idx) => (
+                {activityData.map((activity: any, idx) => (
                   <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="py-4 font-medium text-sm">{activity.name}</td>
                     <td className="py-4 text-sm text-right">{activity.reach}</td>

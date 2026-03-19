@@ -1,15 +1,17 @@
 import api from './api';
 
-export interface StrategyAtom {
+export interface Atom {
   id: string;
   name: string;
   type: 'hook' | 'channel' | 'content' | 'risk';
-  description: string;
+  description?: string;
   successRate?: number;
-  usageCount?: number;
+  usageCount: number;
   tags: string[];
+  config?: any;
   scenarios?: string[];
-  config?: Record<string, any>;
+  status: string;
+  version: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,17 +47,16 @@ export interface TaskSchedule {
 
 export const getAtoms = (params?: {
   type?: string;
-  scenario?: string;
-  search?: string;
-  sort?: string;
+  page?: number;
+  limit?: number;
 }) => api.get('/atoms', { params });
 
 export const getAtom = (id: string) => api.get(`/atoms/${id}`);
 
-export const createAtom = (data: Partial<StrategyAtom>) =>
+export const createAtom = (data: Partial<Atom>) =>
   api.post('/atoms', data);
 
-export const updateAtom = (id: string, data: Partial<StrategyAtom>) =>
+export const updateAtom = (id: string, data: Partial<Atom>) =>
   api.put(`/atoms/${id}`, data);
 
 export const deleteAtom = (id: string) => api.delete(`/atoms/${id}`);
