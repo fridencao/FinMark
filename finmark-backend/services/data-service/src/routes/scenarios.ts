@@ -77,7 +77,7 @@ scenarioRouter.post('/',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
       const b = req.body as Record<string, unknown>;
       const scenario = await prisma.scenario.create({
-        data: { title: b.title as string, goal: b.goal as string, category: b.category as 'acquisition', icon: b.icon as string | undefined, color: b.color as string | undefined, config: b.config as object | undefined, isCustom: true },
+        data: { title: b.title as string, goal: b.goal as string, category: b.category as any, icon: b.icon as string | undefined, color: b.color as string | undefined, config: b.config as object | undefined, isCustom: true },
       });
       const authReq = req as AuthRequest;
       const ip = typeof req.ip === 'string' ? req.ip : undefined;

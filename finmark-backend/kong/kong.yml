@@ -38,7 +38,7 @@ services:
       - name: agent-route
         paths:
           - /api/agents
-        strip_path: false
+        strip_path: true
     plugins:
       - name: cors
       - name: rate-limiting

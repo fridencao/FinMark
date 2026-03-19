@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Edit, Trash2, RefreshCw, Check, X, ExternalLink } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getUsers, createUser, updateUser, deleteUser, getRoles, type User, type Role, type Permission } from '@/services/user';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PermissionManager } from '@/components/settings/PermissionManager';
 import { getModels, createModel, deleteModel, testModel, setDefaultModel, getIntegrations, connectIntegration, disconnectIntegration } from '@/services/settings';
-import type { Role, Permission } from '@/services/user';
 
 interface Integration {
   id: string;
@@ -52,7 +52,6 @@ export function SettingsPage() {
   const { language } = useAppStore();
   const queryClient = useQueryClient();
   const [roles, setRoles] = useState<Role[]>(defaultRoles);
-  const [permissions] = useState<Permission[]>(defaultPermissions);
 
   const { data: modelsData, isLoading: modelsLoading } = useQuery({
     queryKey: ['models'],
@@ -64,13 +63,13 @@ export function SettingsPage() {
     queryFn: () => getIntegrations(),
   });
 
-  const deleteModelMutation = useMutation({
-    mutationFn: deleteModel,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => getUsers(),
   });
 
-  const setDefaultMutation = useMutation({
-    mutationFn: setDefaultModel,
+  const deleteModelMutation = useMutation({
+    mutationFn: deleteModel,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
   });
 
@@ -88,8 +87,14 @@ export function SettingsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+
   const models = modelsData?.data || [];
   const integrations = (integrationsData?.data || []) as Integration[];
+  const users = usersData?.data || [];
 
   const t = language === 'zh' ? {
     modelConfig: '模型配置',
@@ -106,8 +111,8 @@ export function SettingsPage() {
     disconnect: '断开',
     addUser: '添加用户',
     import: '批量导入',
-    enabled: '启用',
-    disabled: '禁用',
+    enabled: '已启用',
+    disabled: '已禁用',
     connected: '已连接',
     disconnected: '未连接',
     error: '错误',
@@ -153,13 +158,6 @@ export function SettingsPage() {
         return <Badge>{status}</Badge>;
     }
   };
-
-  const defaultUsers = [
-    { id: '1', username: 'admin', name: '张三', role: '管理员', status: 'enabled', lastLogin: '2024-01-15 09:30' },
-    { id: '2', username: 'manager1', name: '李四', role: '业务经理', status: 'enabled', lastLogin: '2024-01-14 16:20' },
-    { id: '3', username: 'operator1', name: '王五', role: '运营人员', status: 'enabled', lastLogin: '2024-01-15 11:00' },
-    { id: '4', username: 'readonly1', name: '赵六', role: '只读用户', status: 'disabled', lastLogin: '2024-01-10 14:00' },
-  ];
 
   return (
     <div className="space-y-8">
@@ -334,42 +332,58 @@ export function SettingsPage() {
           </div>
 
           <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{language === 'zh' ? '用户名' : 'Username'}</TableHead>
-                  <TableHead>{language === 'zh' ? '姓名' : 'Name'}</TableHead>
-                  <TableHead>{language === 'zh' ? '角色' : 'Role'}</TableHead>
-                  <TableHead>{language === 'zh' ? '状态' : 'Status'}</TableHead>
-                  <TableHead>{language === 'zh' ? '最后登录' : 'Last Login'}</TableHead>
-                  <TableHead className="text-right">{language === 'zh' ? '操作' : 'Actions'}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {defaultUsers.map(user => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.role}</TableCell>
-                    <TableCell>{getStatusBadge(user.status)}</TableCell>
-                    <TableCell className="text-slate-500">{user.lastLogin}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="ghost" size="sm" className="rounded-xl">{t.edit}</Button>
-                        <Button variant="ghost" size="sm" className="text-red-500 rounded-xl">{t.delete}</Button>
-                      </div>
-                    </TableCell>
+            {usersLoading ? (
+              <div className="p-6 space-y-4">
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === 'zh' ? '用户名' : 'Username'}</TableHead>
+                    <TableHead>{language === 'zh' ? '姓名' : 'Name'}</TableHead>
+                    <TableHead>{language === 'zh' ? '角色' : 'Role'}</TableHead>
+                    <TableHead>{language === 'zh' ? '状态' : 'Status'}</TableHead>
+                    <TableHead>{language === 'zh' ? '最后登录' : 'Last Login'}</TableHead>
+                    <TableHead className="text-right">{language === 'zh' ? '操作' : 'Actions'}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell className="capitalize">{user.role}</TableCell>
+                      <TableCell>{getStatusBadge(user.status)}</TableCell>
+                      <TableCell className="text-slate-500">
+                        {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="ghost" size="sm" className="rounded-xl">{t.edit}</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 rounded-xl"
+                            onClick={() => deleteUserMutation.mutate(user.id)}
+                            disabled={deleteUserMutation.isPending}
+                          >
+                            {t.delete}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </Card>
         </TabsContent>
 
         <TabsContent value="permission">
           <PermissionManager
             roles={roles}
-            permissions={permissions}
+            permissions={defaultPermissions}
             onRolesChange={setRoles}
           />
         </TabsContent>

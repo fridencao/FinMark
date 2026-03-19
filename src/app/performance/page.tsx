@@ -30,22 +30,19 @@ export function PerformancePage() {
   const { language } = useAppStore();
   const [timeRange, setTimeRange] = useState('week');
 
-  const { data: metricsData, isLoading: metricsLoading } = useQuery({
+  const { data: metricsData } = useQuery({
     queryKey: ['performance', 'metrics', timeRange],
     queryFn: () => getDashboardMetrics({ timeRange }),
-    enabled: false,
   });
 
   const { data: trendDataRaw } = useQuery({
     queryKey: ['performance', 'trend', timeRange],
     queryFn: () => getDashboardTrend({ timeRange }),
-    enabled: false,
   });
 
   const { data: reportsData } = useQuery({
     queryKey: ['performance', 'reports'],
     queryFn: () => getActivityReports(),
-    enabled: false,
   });
 
   const t = language === 'zh' ? {

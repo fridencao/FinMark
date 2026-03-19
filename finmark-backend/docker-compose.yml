@@ -62,6 +62,60 @@ services:
     networks:
       - finmark-network
 
+  data-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.data-service
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://finmark:finmark123@postgres:5432/finmark
+      JWT_SECRET: ${JWT_SECRET:-finmark-super-secret-jwt-key-change-in-production}
+      PORT: 3001
+      NODE_ENV: production
+      CORS_ORIGIN: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - finmark-network
+    restart: unless-stopped
+
+  llm-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.llm-gateway
+    ports:
+      - "3002:3002"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: gemini-2.5-flash
+      PORT: 3002
+      NODE_ENV: production
+    depends_on:
+      - kong
+    networks:
+      - finmark-network
+    restart: unless-stopped
+
+  agent-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent-service
+    ports:
+      - "3003:3003"
+    environment:
+      LLM_GATEWAY_URL: http://llm-gateway:3002
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PORT: 3003
+      NODE_ENV: production
+    depends_on:
+      - llm-gateway
+      - kong
+    networks:
+      - finmark-network
+    restart: unless-stopped
+
 volumes:
   postgres-data:
 

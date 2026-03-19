@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/data-service/package.json ./services/data-service/
+COPY services/llm-gateway/package.json ./services/llm-gateway/
+
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY services/llm-gateway ./services/llm-gateway
+
+WORKDIR /app/services/llm-gateway
+RUN pnpm build
+
+EXPOSE 3002
+
+CMD ["node", "dist/index.js"]

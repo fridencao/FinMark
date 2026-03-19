@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Play, Copy, Clock, Users, Target, GitBranch, ShieldCheck, Zap, BarChart3, MessageSquare, Settings, AlertTriangle } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { getScenario, executeScenario } from '@/services/scenario';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,31 +16,6 @@ import { Slider } from '@/components/ui/slider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
-const defaultScenario = {
-  id: 'churn',
-  title: '流失挽回',
-  goal: '识别近30天资产下降超过30%的客户并进行挽回营销',
-  category: 'recovery',
-  icon: 'Users',
-  color: 'bg-rose-50',
-  complianceScore: 98,
-  riskLevel: 'low',
-  targetCustomers: 12580,
-  expectedROI: 3.5,
-  channels: ['APP推送', '短信', '外呼'],
-  schedule: { startDate: '2024-01-15', endDate: '2024-02-15', frequency: '每日' },
-  conditions: [
-    { field: '资产下降比例', operator: '>=', value: '30%', unit: 'percent', duration: '30天' },
-    { field: '客户等级', operator: '=', value: 'VIP', unit: 'enum' },
-    { field: '产品持有数', operator: '>=', value: '3', unit: 'count' },
-  ],
-  content: {
-    title: '您的专属理财顾问想您了',
-    body: '尊敬的VIP客户，您近期资产有变动，我们为您准备了专属理财产品，预期收益...',
-    buttons: ['查看详情', '联系顾问'],
-  },
-};
-
 const channelConfigs = [
   { id: 'app_push', name: 'APP推送', enabled: true, priority: 1, maxPerDay: 1 },
   { id: 'sms', name: '短信', enabled: true, priority: 2, maxPerDay: 2 },
@@ -46,124 +23,87 @@ const channelConfigs = [
   { id: 'wechat', name: '企业微信', enabled: true, priority: 4, maxPerDay: 3 },
 ];
 
-const sampleCustomers = [
-  { id: 'C001', name: '张**', level: 'VIP', assets: 5800000, decline: 35, channel: 'APP推送', status: '已触达', response: '有意向' },
-  { id: 'C002', name: '李**', level: 'VIP', assets: 3200000, decline: 42, channel: '短信', status: '已触达', response: '待跟进' },
-  { id: 'C003', name: '王**', level: 'SVIP', assets: 12000000, decline: 38, channel: '外呼', status: '已触达', response: '已购买' },
-  { id: 'C004', name: '赵**', level: 'VIP', assets: 2100000, decline: 31, channel: 'APP推送', status: '未触达', response: '-' },
-  { id: 'C005', name: '刘**', level: 'VIP', assets: 4500000, decline: 55, channel: '短信', status: '已触达', response: '无意向' },
-];
-
 export function FactoryDetailPage() {
   const { language } = useAppStore();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [scenario, setScenario] = useState(defaultScenario);
+  const queryClient = useQueryClient();
+
+  const { data: scenarioData, isLoading } = useQuery({
+    queryKey: ['scenario', id],
+    queryFn: () => getScenario(id!),
+    enabled: !!id,
+  });
+
+  const executeMutation = useMutation({
+    mutationFn: () => executeScenario(id!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenario', id] }),
+  });
+
+  const scenario = scenarioData?.data;
+
   const [activeTab, setActiveTab] = useState('config');
   const [channels, setChannels] = useState(channelConfigs);
   const [showPreview, setShowPreview] = useState(false);
 
   const t = language === 'zh' ? {
-    title: '场景详情',
-    edit: '编辑',
-    save: '保存',
-    execute: '执行',
-    duplicate: '复制',
-    back: '返回',
-    config: '基础配置',
-    target: '目标客群',
-    content: '内容配置',
-    channels: '渠道配置',
-    preview: '预览',
-    compliance: '合规审查',
-    complianceScore: '合规评分',
-    riskLevel: '风险等级',
-    lowRisk: '低风险',
-    mediumRisk: '中风险',
-    highRisk: '高风险',
-    targetCustomers: '目标客户数',
-    expectedROI: '预期ROI',
-    schedule: '执行计划',
-    startDate: '开始日期',
-    endDate: '结束日期',
-    frequency: '发送频率',
-    daily: '每日',
-    conditions: '筛选条件',
-    field: '字段',
-    operator: '运算符',
-    value: '值',
-    duration: '时间范围',
-    channel: '渠道',
-    priority: '优先级',
-    maxPerDay: '每日上限',
-    enabled: '启用',
-    contentTitle: '标题',
-    contentBody: '正文',
-    buttons: '按钮',
-    customerList: '客户列表',
-    name: '姓名',
-    level: '等级',
-    assets: '资产',
-    decline: '下降比例',
-    status: '状态',
-    response: '响应',
+    title: '场景详情', edit: '编辑', save: '保存', execute: '执行', duplicate: '复制', back: '返回',
+    config: '基础配置', target: '目标客群', content: '内容配置', channels: '渠道配置', preview: '预览',
+    complianceScore: '合规评分', riskLevel: '风险等级', lowRisk: '低风险', mediumRisk: '中风险', highRisk: '高风险',
+    targetCustomers: '目标客户数', expectedROI: '预期ROI', schedule: '执行计划',
+    startDate: '开始日期', endDate: '结束日期', frequency: '发送频率', daily: '每日',
+    conditions: '筛选条件', field: '字段', operator: '运算符', value: '值', duration: '时间范围',
+    channel: '渠道', priority: '优先级', maxPerDay: '每日上限', enabled: '启用',
+    contentTitle: '标题', contentBody: '正文', buttons: '按钮', customerList: '客户列表',
+    name: '姓名', level: '等级', assets: '资产', decline: '下降比例', status: '状态', response: '响应',
     aiOptimize: 'AI优化内容',
   } : {
-    title: 'Scenario Detail',
-    edit: 'Edit',
-    save: 'Save',
-    execute: 'Execute',
-    duplicate: 'Duplicate',
-    back: 'Back',
-    config: 'Config',
-    target: 'Target',
-    content: 'Content',
-    channels: 'Channels',
-    preview: 'Preview',
-    compliance: 'Compliance',
-    complianceScore: 'Compliance',
-    riskLevel: 'Risk',
-    lowRisk: 'Low',
-    mediumRisk: 'Medium',
-    highRisk: 'High',
-    targetCustomers: 'Target Customers',
-    expectedROI: 'Expected ROI',
-    schedule: 'Schedule',
-    startDate: 'Start Date',
-    endDate: 'End Date',
-    frequency: 'Frequency',
-    daily: 'Daily',
-    conditions: 'Conditions',
-    field: 'Field',
-    operator: 'Operator',
-    value: 'Value',
-    duration: 'Duration',
-    channel: 'Channel',
-    priority: 'Priority',
-    maxPerDay: 'Max/Day',
-    enabled: 'Enabled',
-    contentTitle: 'Title',
-    contentBody: 'Body',
-    buttons: 'Buttons',
-    customerList: 'Customer List',
-    name: 'Name',
-    level: 'Level',
-    assets: 'Assets',
-    decline: 'Decline',
-    status: 'Status',
-    response: 'Response',
+    title: 'Scenario Detail', edit: 'Edit', save: 'Save', execute: 'Execute', duplicate: 'Duplicate', back: 'Back',
+    config: 'Config', target: 'Target', content: 'Content', channels: 'Channels', preview: 'Preview',
+    complianceScore: 'Compliance', riskLevel: 'Risk', lowRisk: 'Low', mediumRisk: 'Medium', highRisk: 'High',
+    targetCustomers: 'Target Customers', expectedROI: 'Expected ROI', schedule: 'Schedule',
+    startDate: 'Start Date', endDate: 'End Date', frequency: 'Frequency', daily: 'Daily',
+    conditions: 'Conditions', field: 'Field', operator: 'Operator', value: 'Value', duration: 'Duration',
+    channel: 'Channel', priority: 'Priority', maxPerDay: 'Max/Day', enabled: 'Enabled',
+    contentTitle: 'Title', contentBody: 'Body', buttons: 'Buttons', customerList: 'Customer List',
+    name: 'Name', level: 'Level', assets: 'Assets', decline: 'Decline', status: 'Status', response: 'Response',
     aiOptimize: 'AI Optimize',
   };
 
   const toggleChannel = (channelId: string) => {
-    setChannels(channels.map(c => 
+    setChannels(channels.map(c =>
       c.id === channelId ? { ...c, enabled: !c.enabled } : c
     ));
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="h-8 w-8 bg-slate-100 rounded animate-pulse" />
+          <div className="h-8 w-48 bg-slate-100 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}
+        </div>
+        <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!scenario) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+        <p>{language === 'zh' ? '场景不存在' : 'Scenario not found'}</p>
+        <Button variant="ghost" onClick={() => navigate('/factory')} className="mt-4">
+          {t.back}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/factory')}>
@@ -177,7 +117,7 @@ export function FactoryDetailPage() {
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
             <ShieldCheck className="w-3 h-3 mr-1" />
-            {t.complianceScore}: {scenario.complianceScore}
+            {t.complianceScore}: {scenario.complianceScore || '—'}
           </Badge>
           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
             <Zap className="w-3 h-3 mr-1" />
@@ -191,14 +131,18 @@ export function FactoryDetailPage() {
             <Settings className="w-4 h-4 mr-1" />
             {t.edit}
           </Button>
-          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => executeMutation.mutate()}
+            disabled={executeMutation.isPending}
+          >
             <Play className="w-4 h-4 mr-1" />
             {t.execute}
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
@@ -206,7 +150,7 @@ export function FactoryDetailPage() {
               <Users className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{scenario.targetCustomers.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{(scenario as any).targetCount?.toLocaleString() || scenario._count?.executions || 0}</p>
               <p className="text-xs text-slate-500">{t.targetCustomers}</p>
             </div>
           </div>
@@ -217,7 +161,7 @@ export function FactoryDetailPage() {
               <Target className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{scenario.expectedROI}x</p>
+              <p className="text-2xl font-bold">{(scenario as any).expectedROI || '—'}x</p>
               <p className="text-xs text-slate-500">{t.expectedROI}</p>
             </div>
           </div>
@@ -228,7 +172,7 @@ export function FactoryDetailPage() {
               <Clock className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{scenario.schedule.frequency}</p>
+              <p className="text-2xl font-bold">{(scenario as any).status || 'draft'}</p>
               <p className="text-xs text-slate-500">{t.frequency}</p>
             </div>
           </div>
@@ -246,7 +190,6 @@ export function FactoryDetailPage() {
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="config">{t.config}</TabsTrigger>
@@ -256,128 +199,40 @@ export function FactoryDetailPage() {
           <TabsTrigger value="preview">{t.preview}</TabsTrigger>
         </TabsList>
 
-        {/* Config Tab */}
         <TabsContent value="config" className="space-y-6 mt-6">
           <Card className="p-6">
             <h4 className="font-bold mb-4 flex items-center gap-2">
               <GitBranch className="w-4 h-4" />
               {t.conditions}
             </h4>
-            <div className="space-y-3">
-              {scenario.conditions.map((condition, idx) => (
-                <div key={idx} className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-                  <Badge variant="outline">{condition.field}</Badge>
-                  <span className="text-slate-400">{condition.operator}</span>
-                  <Badge variant="secondary">{condition.value}</Badge>
-                  <span className="text-xs text-slate-400">{condition.duration}</span>
-                </div>
-              ))}
-            </div>
+            <p className="text-sm text-slate-600">{(scenario as any).goal || scenario.goal}</p>
           </Card>
-
           <Card className="p-6">
             <h4 className="font-bold mb-4 flex items-center gap-2">
               <Clock className="w-4 h-4" />
               {t.schedule}
             </h4>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium text-slate-600 mb-1 block">{t.startDate}</label>
-                <Input type="date" value={scenario.schedule.startDate} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600 mb-1 block">{t.endDate}</label>
-                <Input type="date" value={scenario.schedule.endDate} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600 mb-1 block">{t.frequency}</label>
-                <Select defaultValue={scenario.schedule.frequency}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="每日">{t.daily}</SelectItem>
-                    <SelectItem value="每周">每周</SelectItem>
-                    <SelectItem value="每月">每月</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="text-sm text-slate-600">
+              {(scenario as any).schedule || language === 'zh' ? '未配置' : 'Not configured'}
+            </p>
           </Card>
         </TabsContent>
 
-        {/* Target Tab */}
         <TabsContent value="target" className="mt-6">
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t.name}</TableHead>
-                  <TableHead>{t.level}</TableHead>
-                  <TableHead>{t.assets}</TableHead>
-                  <TableHead>{t.decline}</TableHead>
-                  <TableHead>{t.channel}</TableHead>
-                  <TableHead>{t.status}</TableHead>
-                  <TableHead>{t.response}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sampleCustomers.map(customer => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{customer.level}</Badge>
-                    </TableCell>
-                    <TableCell>¥{customer.assets.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <span className="text-rose-600 font-medium">{customer.decline}%</span>
-                    </TableCell>
-                    <TableCell>{customer.channel}</TableCell>
-                    <TableCell>
-                      <Badge variant={customer.status === '已触达' ? 'default' : 'secondary'}>
-                        {customer.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{customer.response}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <Card className="p-6">
+            <p className="text-sm text-slate-500 text-center py-8">
+              {language === 'zh' ? '客群数据需要从大数据平台获取' : 'Customer data requires big data platform integration'}
+            </p>
           </Card>
         </TabsContent>
 
-        {/* Content Tab */}
         <TabsContent value="content" className="space-y-6 mt-6">
           <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold">{t.content}</h4>
-              <Button variant="outline" size="sm">
-                <Zap className="w-4 h-4 mr-1" />
-                {t.aiOptimize}
-              </Button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-slate-600 mb-1 block">{t.contentTitle}</label>
-                <Input value={scenario.content.title} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600 mb-1 block">{t.contentBody}</label>
-                <Textarea rows={4} value={scenario.content.body} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600 mb-1 block">{t.buttons}</label>
-                <div className="flex gap-2">
-                  {scenario.content.buttons.map((btn, idx) => (
-                    <Badge key={idx} variant="secondary" className="px-3 py-1">{btn}</Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <h4 className="font-bold mb-4">{t.content}</h4>
+            <p className="text-sm text-slate-600">{scenario.goal}</p>
           </Card>
         </TabsContent>
 
-        {/* Channels Tab */}
         <TabsContent value="channels" className="space-y-6 mt-6">
           <Card className="p-6">
             <h4 className="font-bold mb-4">{t.channels}</h4>
@@ -385,8 +240,8 @@ export function FactoryDetailPage() {
               {channels.map(channel => (
                 <div key={channel.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-4">
-                    <Switch 
-                      checked={channel.enabled} 
+                    <Switch
+                      checked={channel.enabled}
                       onCheckedChange={() => toggleChannel(channel.id)}
                     />
                     <div>
@@ -397,11 +252,9 @@ export function FactoryDetailPage() {
                     </div>
                   </div>
                   <div className="w-32">
-                    <Slider 
-                      defaultValue={[channel.priority]} 
-                      max={5} 
-                      min={1} 
-                      step={1}
+                    <Slider
+                      defaultValue={[channel.priority]}
+                      max={5} min={1} step={1}
                       disabled={!channel.enabled}
                     />
                   </div>
@@ -411,7 +264,6 @@ export function FactoryDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Preview Tab */}
         <TabsContent value="preview" className="mt-6">
           <Card className="p-6">
             <h4 className="font-bold mb-4">{t.preview}</h4>
@@ -421,15 +273,8 @@ export function FactoryDetailPage() {
                   <p className="font-bold">FinMark</p>
                 </div>
                 <div className="p-4 space-y-3">
-                  <h4 className="font-bold text-lg">{scenario.content.title}</h4>
-                  <p className="text-sm text-slate-600">{scenario.content.body}</p>
-                  <div className="flex gap-2 pt-2">
-                    {scenario.content.buttons.map((btn, idx) => (
-                      <Button key={idx} size="sm" className="flex-1">
-                        {btn}
-                      </Button>
-                    ))}
-                  </div>
+                  <h4 className="font-bold text-lg">{scenario.title}</h4>
+                  <p className="text-sm text-slate-600">{scenario.goal}</p>
                 </div>
               </div>
             </div>

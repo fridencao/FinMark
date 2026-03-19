@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import type { Application } from 'express';
 import cors from 'cors';
-import { authRouter, scenarioRouter, atomRouter, userRouter } from './routes/index.js';
+import { authRouter, scenarioRouter, atomRouter, userRouter, performanceRouter, settingsRouter } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { checkDatabaseHealth } from './config/database.js';
 
@@ -36,6 +36,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/scenarios', scenarioRouter);
 app.use('/api/atoms', atomRouter);
 app.use('/api/users', userRouter);
+app.use('/api/performance', performanceRouter);
+app.use('/api/settings', settingsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

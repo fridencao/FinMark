@@ -4,10 +4,25 @@ import { body, param, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { ValidationError, NotFoundError, UnauthorizedError } from '../middleware/error.js';
+import type { AuthRequest } from '../middleware/auth.js';
 
 export const userRouter: RouterType = Router();
 
 userRouter.use(requireAuth);
+
+userRouter.get('/me', async (req, res, next) => {
+  try {
+    const authReq = req as AuthRequest;
+    const user = await prisma.user.findUnique({
+      where: { id: authReq.user?.userId },
+      select: { id: true, username: true, email: true, name: true, role: true, status: true, lastLogin: true, createdAt: true },
+    });
+    if (!user) throw new UnauthorizedError();
+    res.json({ success: true, data: user });
+  } catch (err) { next(err); }
+});
+
 
 userRouter.get('/', requireRole('admin'), async (req, res, next) => {
   try {
