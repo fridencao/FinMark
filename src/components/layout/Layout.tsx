@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { AppSidebar } from './Sidebar';
 import { AppHeader } from './Header';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { MockModeBanner } from '@/components/common/MockModeBanner';
 
 export function AppLayout() {
   return (
@@ -16,6 +17,7 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+      <MockModeBanner />
     </TooltipProvider>
   );
 }
