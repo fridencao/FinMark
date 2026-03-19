@@ -1,0 +1,13 @@
+{
+  "name": "finmark-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "start": "pnpm -r start",
+    "db:push": "pnpm --filter data-service db:push",
+    "db:generate": "pnpm --filter data-service db:generate",
+    "db:studio": "pnpm --filter data-service db:studio"
+  }
+}
