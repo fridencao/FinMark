@@ -27,7 +27,7 @@ const AGENTS: AgentState[] = [
 
 export function WorkflowSection() {
   const { language } = useAppStore();
-  const { isOrchestrating, currentStep, setIsOrchestrating, agentResults } = useCopilotStore();
+  const { isOrchestrating, currentStep, agentResults, stopOrchestration } = useCopilotStore();
   
   const t = language === 'zh' ? {
     orchestrating: '多智能体协同编排中...',
@@ -44,7 +44,7 @@ export function WorkflowSection() {
   };
 
   const handleStop = () => {
-    setIsOrchestrating(false);
+    stopOrchestration();
   };
 
   return (

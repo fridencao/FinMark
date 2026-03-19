@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 
 export default function CopilotPage() {
   const { language } = useAppStore();
-  const { masterResult, isOrchestrating, isLoading, setIsOrchestrating } = useCopilotStore();
+  const { masterResult, isOrchestrating, isLoading, stopOrchestration } = useCopilotStore();
   const [showRMChat, setShowRMChat] = useState(false);
   const [showABTest, setShowABTest] = useState(false);
 
@@ -52,7 +52,7 @@ export default function CopilotPage() {
   };
 
   const handleStopOrchestration = () => {
-    setIsOrchestrating(false);
+    stopOrchestration();
   };
 
   return (

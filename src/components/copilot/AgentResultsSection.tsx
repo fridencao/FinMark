@@ -26,18 +26,9 @@ const AGENTS: AgentState[] = [
   { type: 'analyst', label: '评估智能体', icon: <AnalystIcon className="w-5 h-5" />, color: 'bg-rose-500', description: '实时监控营销效果，提供ROI分析' },
 ];
 
-const mockResults: Record<AgentType, string> = {
-  insight: '基于"推广新发基金"的目标，分析了客户画像数据，识别出三类潜在目标客群：高风险偏好客户、基金持有者、ESG关注者。',
-  segment: '筛选出目标客群 8,500 人，其中高优先级 5,000 人（基金持有者+高风险偏好），中优先级 2,300 人（ESG关注者），低优先级 1,200 人。',
-  content: '生成了3组营销文案：专业风格（强调长期价值）、亲和风格（注重情感沟通）、促销风格（突出收益）。每个风格适配短信、APP推送、企微三个渠道。',
-  compliance: '文案合规审核通过。建议：在推送高风险产品时增加风险提示。对R3以下客户自动拦截高风险产品推荐。',
-  strategy: '制定了触达策略：优先企微触达(60%成功率) -> 未读客户4小时后短信触达 -> 外呼跟进。预算分配：企微 3000元，短信 2000元，外呼 5000元。',
-  analyst: '预期效果：触达率 65%，响应率 12%，转化率 1.2%，ROI 2.8。建议：重点关注高优先级客群，可提升整体转化。',
-};
-
 export function AgentResultsSection() {
   const { language } = useAppStore();
-  const { agentResults, isOrchestrating } = useCopilotStore();
+  const { agentResults, streamingContent, isOrchestrating } = useCopilotStore();
   
   const t = language === 'zh' ? {
     executionDetails: '执行详情',
@@ -71,7 +62,7 @@ export function AgentResultsSection() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {AGENTS.filter(a => agentResults[a.type]?.status === 'completed' || isOrchestrating).map((agent) => {
-          const result = agentResults[agent.type]?.result || mockResults[agent.type];
+          const result = agentResults[agent.type]?.content || streamingContent[agent.type] || '';
           const status = agentResults[agent.type]?.status || (isOrchestrating ? 'running' : 'completed');
           
           return (
