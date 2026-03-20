@@ -219,3 +219,51 @@ enum ScheduleStatus {
   paused
   completed
 }
+
+// ==================== 告警系统 ====================
+
+model AlarmRule {
+  id        String   @id @default(uuid())
+  name      String
+  metric    String   // reach_rate, conversion_rate, roi, complaint_count, compliance_score
+  condition String   // lt, gt, lte, gte, eq
+  threshold Float
+  level     String   // warning, critical
+  enabled   Boolean  @default(true)
+  channels  String   // JSON array: ["app_push", "sms", "wechat"]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  history   AlarmHistory[]
+
+  @@map("alarm_rules")
+}
+
+model AlarmHistory {
+  id             String    @id @default(uuid())
+  ruleId         String
+  rule           AlarmRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  triggeredAt    DateTime  @default(now())
+  value          Float
+  status         String    // triggered, resolved, acknowledged
+  acknowledged   Boolean   @default(false)
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  @@map("alarm_history")
+}
+
+// ==================== 报表系统 ====================
+
+model Report {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // summary, scenario, channel, customer
+  format      String   // pdf, excel
+  status      String   // pending, generating, completed, failed
+  fileId      String?  // path to generated file
+  config      Json     // report configuration
+  generatedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("reports")
+}
