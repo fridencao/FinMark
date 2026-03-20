@@ -361,3 +361,42 @@ enum BatchStatus {
   completed
   failed
 }
+
+// ==================== CRM 集成 ====================
+
+model CrmCustomerSync {
+  id         String   @id @default(uuid())
+  crmId      String   @unique
+  name       String
+  phone      String?
+  idNumber   String?
+  lastSyncAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@map("crm_customer_sync")
+}
+
+// ==================== 客群管理 ====================
+
+model AudienceSegment {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  conditions  Json
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("audience_segments")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  segment   String?
+  asset     Float?
+  tags      String[]
+  createdAt DateTime @default(now())
+
+  @@map("customers")
+}
