@@ -6,6 +6,8 @@ import { authRouter, scenarioRouter, atomRouter, userRouter, performanceRouter, 
 import { agentProxyRouter } from './routes/agentProxy.js';
 import { alarmRouter } from './routes/alarms.js';
 import { reportRouter } from './routes/reports.js';
+import { expertRouter } from './routes/expert.js';
+import { crmRouter } from './routes/crm.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { checkDatabaseHealth } from './config/database.js';
 import { initAlarmQueue, alarmQueue } from './queues/alarmQueue.js';
@@ -47,6 +49,7 @@ app.use('/api/agents', agentProxyRouter);
 app.use('/api/alarms', alarmRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/expert', expertRouter);
+app.use('/api/crm', crmRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
