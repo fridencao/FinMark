@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Loader2, Zap } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { useCopilotStore } from '@/stores/copilot';
@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 
 export function GoalInputSection() {
   const { language } = useAppStore();
-  const { goal, setGoal, isLoading, startOrchestration } = useCopilotStore();
-  const [error, setError] = useState('');
+  const { goal, setGoal, isLoading, startOrchestration, orchestrationError } = useCopilotStore();
 
   const t = language === 'zh' ? {
     placeholder: '请输入您的营销目标，例如：推广新发基金，提升基金销售',
@@ -24,7 +23,6 @@ export function GoalInputSection() {
 
   const handleSubmit = () => {
     if (!goal.trim()) return;
-    setError('');
     startOrchestration();
   };
 
@@ -47,8 +45,8 @@ export function GoalInputSection() {
         {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
         {isLoading ? t.orchestrating : t.generatePlan}
       </Button>
-      {error && (
-        <p className="absolute -bottom-6 left-0 text-xs text-red-500">{error}</p>
+      {orchestrationError && (
+        <p className="absolute -bottom-6 left-0 text-xs text-red-500">{orchestrationError}</p>
       )}
     </div>
   );

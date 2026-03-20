@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PermissionManager } from '@/components/settings/PermissionManager';
-import { getModels, createModel, deleteModel, testModel, setDefaultModel, getIntegrations, connectIntegration, disconnectIntegration } from '@/services/settings';
+import { getModels, createModel, updateModel, deleteModel, testModel, setDefaultModel, getIntegrations, connectIntegration, disconnectIntegration } from '@/services/settings';
 
 interface Integration {
   id: string;
@@ -54,6 +55,14 @@ export function SettingsPage() {
   const [roles, setRoles] = useState<Role[]>(defaultRoles);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
+  const [modelDialogOpen, setModelDialogOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<any>(null);
+  const [modelForm, setModelForm] = useState({ name: '', provider: 'gemini', apiUrl: '', apiKey: '', modelVersion: 'gemini-2.0-flash', temperature: 0.7, maxTokens: 4096 });
+
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [userForm, setUserForm] = useState({ username: '', name: '', email: '', password: '', role: 'operator', status: 'enabled' as 'enabled' | 'disabled' });
+
   const { data: modelsData, isLoading: modelsLoading } = useQuery({
     queryKey: ['models'],
     queryFn: () => getModels(),
@@ -67,6 +76,24 @@ export function SettingsPage() {
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => getUsers(),
+  });
+
+  const createModelMutation = useMutation({
+    mutationFn: createModel,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['models'] }); setModelDialogOpen(false); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '创建模型失败' : 'Failed to create model')),
+  });
+
+  const updateModelMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateModel(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['models'] }); setModelDialogOpen(false); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '更新模型失败' : 'Failed to update model')),
+  });
+
+  const defaultModelMutation = useMutation({
+    mutationFn: setDefaultModel,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '设置默认失败' : 'Failed to set default')),
   });
 
   const deleteModelMutation = useMutation({
@@ -90,6 +117,18 @@ export function SettingsPage() {
     mutationFn: disconnectIntegration,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
     onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '断开连接失败' : 'Disconnect failed')),
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); setUserDialogOpen(false); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '创建用户失败' : 'Failed to create user')),
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); setUserDialogOpen(false); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '更新用户失败' : 'Failed to update user')),
   });
 
   const deleteUserMutation = useMutation({
@@ -200,7 +239,7 @@ export function SettingsPage() {
 
         <TabsContent value="model" className="space-y-6">
           <div className="flex justify-end">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl" onClick={() => { setEditingModel(null); setModelForm({ name: '', provider: 'gemini', apiUrl: '', apiKey: '', modelVersion: 'gemini-2.0-flash', temperature: 0.7, maxTokens: 4096 }); setModelDialogOpen(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               {t.addModel}
             </Button>
@@ -229,7 +268,13 @@ export function SettingsPage() {
                       <TableCell>{model.type === 'api' ? 'API' : 'Local'}</TableCell>
                       <TableCell>{getStatusBadge(model.status)}</TableCell>
                       <TableCell>
-                        {model.isDefault && <Badge className="bg-indigo-100 text-indigo-700">Default</Badge>}
+                        {model.isDefault ? (
+                          <Badge className="bg-indigo-100 text-indigo-700">Default</Badge>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="text-xs text-indigo-600 h-6 px-2" onClick={() => defaultModelMutation.mutate(model.id)} disabled={defaultModelMutation.isPending}>
+                            {language === 'zh' ? '设为默认' : 'Set Default'}
+                          </Button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
@@ -242,7 +287,9 @@ export function SettingsPage() {
                           >
                             {t.test}
                           </Button>
-                          <Button variant="ghost" size="sm" className="rounded-xl">{t.edit}</Button>
+                          <Button variant="ghost" size="sm" className="rounded-xl" onClick={() => { setEditingModel(model); setModelForm({ name: model.name, provider: model.provider || 'gemini', apiUrl: model.apiUrl || '', apiKey: '', modelVersion: model.modelVersion || '', temperature: model.temperature || 0.7, maxTokens: model.maxTokens || 4096 }); setModelDialogOpen(true); }}>
+                            {t.edit}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -331,7 +378,7 @@ export function SettingsPage() {
 
         <TabsContent value="users" className="space-y-6">
           <div className="flex gap-4">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl" onClick={() => { setEditingUser(null); setUserForm({ username: '', name: '', email: '', password: '', role: 'operator', status: 'enabled' }); setUserDialogOpen(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               {t.addUser}
             </Button>
@@ -370,7 +417,7 @@ export function SettingsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                          <Button variant="ghost" size="sm" className="rounded-xl">{t.edit}</Button>
+                          <Button variant="ghost" size="sm" className="rounded-xl" onClick={() => { setEditingUser(user); setUserForm({ username: user.username, name: user.name || '', email: user.email || '', password: '', role: user.role || 'operator', status: user.status || 'enabled' }); setUserDialogOpen(true); }}>{t.edit}</Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -398,6 +445,139 @@ export function SettingsPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={modelDialogOpen} onOpenChange={setModelDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingModel ? (language === 'zh' ? '编辑模型' : 'Edit Model') : (language === 'zh' ? '添加模型' : 'Add Model')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>{language === 'zh' ? '模型名称' : 'Model Name'}</Label>
+              <Input value={modelForm.name} onChange={e => setModelForm(f => ({ ...f, name: e.target.value }))} placeholder="Gemini 2.0 Flash" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{language === 'zh' ? '提供商' : 'Provider'}</Label>
+                <Select value={modelForm.provider} onValueChange={v => setModelForm(f => ({ ...f, provider: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gemini">Gemini</SelectItem>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="claude">Claude</SelectItem>
+                    <SelectItem value="local">Local</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{language === 'zh' ? '模型版本' : 'Model Version'}</Label>
+                <Input value={modelForm.modelVersion} onChange={e => setModelForm(f => ({ ...f, modelVersion: e.target.value }))} placeholder="gemini-2.0-flash" />
+              </div>
+            </div>
+            <div>
+              <Label>API URL</Label>
+              <Input value={modelForm.apiUrl} onChange={e => setModelForm(f => ({ ...f, apiUrl: e.target.value }))} placeholder="https://api.example.com" />
+            </div>
+            <div>
+              <Label>API Key</Label>
+              <Input type="password" value={modelForm.apiKey} onChange={e => setModelForm(f => ({ ...f, apiKey: e.target.value }))} placeholder={editingModel ? (language === 'zh' ? '(留空保留原值)' : '(keep empty to retain)') : ''} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{language === 'zh' ? 'Temperature' : 'Temperature'}: {modelForm.temperature}</Label>
+                <Input type="range" min={0} max={2} step={0.1} value={modelForm.temperature} onChange={e => setModelForm(f => ({ ...f, temperature: parseFloat(e.target.value) }))} className="py-1" />
+              </div>
+              <div>
+                <Label>{language === 'zh' ? 'Max Tokens' : 'Max Tokens'}: {modelForm.maxTokens}</Label>
+                <Input type="number" value={modelForm.maxTokens} onChange={e => setModelForm(f => ({ ...f, maxTokens: parseInt(e.target.value) || 4096 }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModelDialogOpen(false)}>{language === 'zh' ? '取消' : 'Cancel'}</Button>
+            <Button
+              onClick={() => {
+                if (!modelForm.name || !modelForm.modelVersion) return;
+                const payload: any = { ...modelForm, status: 'enabled' };
+                if (!payload.apiKey) delete payload.apiKey;
+                if (editingModel) updateModelMutation.mutate({ id: editingModel.id, data: payload });
+                else createModelMutation.mutate(payload);
+              }}
+              disabled={!modelForm.name || !modelForm.modelVersion || createModelMutation.isPending || updateModelMutation.isPending}
+            >
+              {language === 'zh' ? '保存' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingUser ? (language === 'zh' ? '编辑用户' : 'Edit User') : (language === 'zh' ? '添加用户' : 'Add User')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>{language === 'zh' ? '用户名' : 'Username'}</Label>
+              <Input value={userForm.username} onChange={e => setUserForm(f => ({ ...f, username: e.target.value }))} placeholder="john_doe" disabled={!!editingUser} />
+            </div>
+            <div>
+              <Label>{language === 'zh' ? '姓名' : 'Name'}</Label>
+              <Input value={userForm.name} onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))} placeholder={language === 'zh' ? '张三' : 'John Doe'} />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} placeholder="john@example.com" />
+            </div>
+            {!editingUser && (
+              <div>
+                <Label>{language === 'zh' ? '密码' : 'Password'}</Label>
+                <Input type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{language === 'zh' ? '角色' : 'Role'}</Label>
+                <Select value={userForm.role} onValueChange={v => setUserForm(f => ({ ...f, role: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">{language === 'zh' ? '管理员' : 'Admin'}</SelectItem>
+                    <SelectItem value="manager">{language === 'zh' ? '业务经理' : 'Manager'}</SelectItem>
+                    <SelectItem value="operator">{language === 'zh' ? '运营人员' : 'Operator'}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{language === 'zh' ? '状态' : 'Status'}</Label>
+                <Select value={userForm.status} onValueChange={v => setUserForm(f => ({ ...f, status: v as 'enabled' | 'disabled' }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="enabled">{language === 'zh' ? '启用' : 'Enabled'}</SelectItem>
+                    <SelectItem value="disabled">{language === 'zh' ? '禁用' : 'Disabled'}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUserDialogOpen(false)}>{language === 'zh' ? '取消' : 'Cancel'}</Button>
+            <Button
+              onClick={() => {
+                if (!userForm.username || (!editingUser && !userForm.password)) return;
+                if (editingUser) {
+                  const payload: any = { name: userForm.name, email: userForm.email, role: userForm.role, status: userForm.status };
+                  updateUserMutation.mutate({ id: editingUser.id, data: payload });
+                } else {
+                  createUserMutation.mutate({ ...userForm, password: userForm.password } as any);
+                }
+              }}
+              disabled={!userForm.username || (!editingUser && !userForm.password) || createUserMutation.isPending || updateUserMutation.isPending}
+            >
+              {language === 'zh' ? '保存' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

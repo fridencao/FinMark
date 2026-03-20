@@ -141,7 +141,15 @@ export function PerformancePage() {
               <TabsTrigger value="year">{t.year}</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button variant="outline" className="flex items-center gap-2" onClick={() => {
+            const headers = ['活动', '触达', '响应率', '转化率', 'ROI', '状态'];
+            const rows = activityData.map((a: any) => [a.name, a.reach, a.response, a.conversion, a.roi, a.status]);
+            const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `finmark-report-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+            URL.revokeObjectURL(url);
+          }}>
             <Download className="w-4 h-4" />
             {t.export}
           </Button>
@@ -259,7 +267,7 @@ export function PerformancePage() {
                       </Badge>
                     </td>
                     <td className="py-4 text-right">
-                      <Button variant="ghost" size="sm" className="text-indigo-600">
+                      <Button variant="ghost" size="sm" className="text-indigo-600" onClick={() => alert(language === 'zh' ? '活动详情功能开发中' : 'Activity detail coming soon')}>
                         <ArrowUpRight className="w-4 h-4" />
                       </Button>
                     </td>

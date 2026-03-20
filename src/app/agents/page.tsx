@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const defaultAgents = [
   { id: 'insight', type: 'insight', name: '洞察智能体', description: '分析客户行为，挖掘潜在金融需求', color: 'bg-blue-500' },
@@ -36,6 +38,9 @@ export function AgentsPage() {
     insight: 'running', segment: 'running', content: 'running',
     compliance: 'running', strategy: 'running', analyst: 'running',
   });
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [configAgent, setConfigAgent] = useState<any>(null);
+  const [agentConfig, setAgentConfig] = useState({ temperature: 0.7, maxTokens: 4096 });
 
   const { data: statusData } = useQuery({
     queryKey: ['agent-status'],
@@ -123,7 +128,7 @@ export function AgentsPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-slate-50 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 rounded-xl">
+                <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => { setConfigAgent(agent); setAgentConfig({ temperature: 0.7, maxTokens: 4096 }); setConfigDialogOpen(true); }}>
                   <Settings className="w-4 h-4 mr-1" />
                   {t.config}
                 </Button>
@@ -139,6 +144,39 @@ export function AgentsPage() {
           );
         })}
       </div>
+
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{configAgent?.name} — {language === 'zh' ? '模型配置' : 'Model Config'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div>
+              <Label>{language === 'zh' ? '模型' : 'Model'}</Label>
+              <Select defaultValue="gemini">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini">Gemini 2.0 Flash</SelectItem>
+                  <SelectItem value="gemini-pro">Gemini 2.0 Pro</SelectItem>
+                  <SelectItem value="openai">GPT-4o</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{language === 'zh' ? 'Temperature' : 'Temperature'}: {agentConfig.temperature}</Label>
+              <Slider value={[agentConfig.temperature * 10]} min={0} max={20} step={1} onValueChange={v => setAgentConfig(c => ({ ...c, temperature: v[0] / 10 }))} />
+            </div>
+            <div>
+              <Label>{language === 'zh' ? 'Max Tokens' : 'Max Tokens'}: {agentConfig.maxTokens}</Label>
+              <Input type="number" value={agentConfig.maxTokens} onChange={e => setAgentConfig(c => ({ ...c, maxTokens: parseInt(e.target.value) || 4096 }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>{language === 'zh' ? '取消' : 'Cancel'}</Button>
+            <Button onClick={() => setConfigDialogOpen(false)}>{language === 'zh' ? '保存配置' : 'Save Config'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import api from '@/services/api';
 
 interface Message {
   role: 'user' | 'ai';
@@ -36,15 +37,6 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
   const [messages, setMessages] = useState<Message[]>(defaultMessages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const timeoutRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
 
   const t = language === 'zh' ? {
     title: 'RM Copilot 话术对练',
@@ -70,27 +62,15 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
     setInput('');
     setIsLoading(true);
 
-    timeoutRef.current = window.setTimeout(async () => {
-      try {
-        const token = localStorage.getItem('auth-token');
-        const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
-        const response = await fetch(`${apiBase}/agents/insight`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ goal: userContent, lang: language }),
-        });
-        const data = await response.json();
-        const aiContent = data?.data || t.fallback;
-        setMessages(prev => [...prev, { role: 'ai', content: aiContent }]);
-      } catch {
-        setMessages(prev => [...prev, { role: 'ai', content: t.fallback }]);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 1000);
+    try {
+      const data = await api.post('/agents/insight', { goal: userContent, lang: language }) as { data?: string };
+      const aiContent = data?.data || t.fallback;
+      setMessages(prev => [...prev, { role: 'ai', content: aiContent }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'ai', content: t.fallback }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

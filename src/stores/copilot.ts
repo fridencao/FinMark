@@ -30,6 +30,7 @@ interface CopilotState {
   isLoading: boolean;
   currentStep: number;
   masterResult?: string;
+  orchestrationError?: string;
   agentResults: Record<AgentType, AgentExecution>;
   streamingContent: Record<AgentType, string>;
   setGoal: (goal: string) => void;
@@ -46,6 +47,7 @@ const initialState = {
   goal: '',
   budget: 10000,
   channels: ['短信', '企微', 'APP'],
+  orchestrationError: undefined,
   lang: 'zh' as const,
   isOrchestrating: false,
   isLoading: false,
@@ -68,6 +70,7 @@ export const useCopilotStore = create<CopilotState>()(
       startOrchestration: () => {
         const { goal } = get();
         if (!goal.trim()) return;
+        set({ orchestrationError: undefined });
         executeWorkflow(get, set);
       },
 
@@ -244,10 +247,12 @@ async function executeWorkflow(
       set({ isOrchestrating: false, isLoading: false });
       return;
     }
+    const errorMessage = err?.response?.data?.message || err?.message || (get().lang === 'zh' ? '生成失败，请重试' : 'Generation failed, please try again');
     console.error('[Copilot] Orchestration failed:', err);
     set((state: CopilotState) => ({
       isOrchestrating: false,
       isLoading: false,
+      orchestrationError: errorMessage,
       agentResults: {
         ...state.agentResults,
         insight: { ...state.agentResults.insight, status: 'failed', error: err.message },

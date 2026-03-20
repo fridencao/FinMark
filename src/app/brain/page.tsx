@@ -6,7 +6,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { getAtoms, createAtom, deleteAtom, Atom } from '@/services/strategy';
 
 const typeConfig = (lang: 'zh' | 'en') => ({
@@ -23,6 +26,9 @@ export function BrainPage() {
   const [sortBy, setSortBy] = useState('usage');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [atomForm, setAtomForm] = useState({ name: '', type: 'hook' as 'hook' | 'channel' | 'content' | 'risk', description: '', successRate: 80, tags: '' });
 
   const { data: atomsData, isLoading } = useQuery({
     queryKey: ['atoms', typeFilter],
@@ -30,6 +36,12 @@ export function BrainPage() {
   });
 
   const atoms = atomsData?.data || [];
+
+  const createMutation = useMutation({
+    mutationFn: createAtom,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['atoms'] }); setDialogOpen(false); },
+    onError: (err: any) => setCreateError(err?.response?.data?.message || (language === 'zh' ? '创建失败' : 'Failed to create')),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAtom,
@@ -115,7 +127,7 @@ export function BrainPage() {
           <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
           <p className="text-slate-500">{t.subtitle}</p>
         </div>
-        <Button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold flex items-center gap-2 hover:bg-indigo-700">
+        <Button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold flex items-center gap-2 hover:bg-indigo-700" onClick={() => { setAtomForm({ name: '', type: 'hook', description: '', successRate: 80, tags: '' }); setDialogOpen(true); }}>
           <Plus className="w-5 h-5" />
           {t.createAtom}
         </Button>
@@ -221,6 +233,51 @@ export function BrainPage() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{language === 'zh' ? '创建策略原子' : 'Create Strategy Atom'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>{language === 'zh' ? '原子名称' : 'Atom Name'}</Label>
+              <Input value={atomForm.name} onChange={e => setAtomForm(f => ({ ...f, name: e.target.value }))} placeholder={language === 'zh' ? '例如：限时加息钩子' : 'e.g. Limited-time rate hook'} />
+            </div>
+            <div>
+              <Label>{language === 'zh' ? '类型' : 'Type'}</Label>
+              <Select value={atomForm.type} onValueChange={v => setAtomForm(f => ({ ...f, type: v as any }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hook">{language === 'zh' ? '钩子' : 'Hook'}</SelectItem>
+                  <SelectItem value="channel">{language === 'zh' ? '渠道' : 'Channel'}</SelectItem>
+                  <SelectItem value="content">{language === 'zh' ? '内容' : 'Content'}</SelectItem>
+                  <SelectItem value="risk">{language === 'zh' ? '风险' : 'Risk'}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{language === 'zh' ? '描述' : 'Description'}</Label>
+              <Input value={atomForm.description} onChange={e => setAtomForm(f => ({ ...f, description: e.target.value }))} placeholder={language === 'zh' ? '原子功能描述' : 'Describe this atom'} />
+            </div>
+            <div>
+              <Label>{language === 'zh' ? '成功率' : 'Success Rate'}: {atomForm.successRate}%</Label>
+              <Input type="range" min={0} max={100} value={atomForm.successRate} onChange={e => setAtomForm(f => ({ ...f, successRate: parseInt(e.target.value) }))} className="py-1" />
+            </div>
+            <div>
+              <Label>{language === 'zh' ? '标签（逗号分隔）' : 'Tags (comma-separated)'}</Label>
+              <Input value={atomForm.tags} onChange={e => setAtomForm(f => ({ ...f, tags: e.target.value }))} placeholder={language === 'zh' ? '新客, 限时, 加息' : 'new_customer, limited, bonus'} />
+            </div>
+            {createError && <p className="text-sm text-red-600">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{language === 'zh' ? '取消' : 'Cancel'}</Button>
+            <Button onClick={() => { if (!atomForm.name) return; createMutation.mutate({ name: atomForm.name, type: atomForm.type, description: atomForm.description, successRate: atomForm.successRate, tags: atomForm.tags.split(',').map(t => t.trim()).filter(Boolean) }); }} disabled={!atomForm.name || createMutation.isPending}>
+              {language === 'zh' ? '创建' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
