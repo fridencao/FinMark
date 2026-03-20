@@ -47,8 +47,8 @@ test_api() {
             -d "$data")
     fi
     
-    http_code=$(echo "$response" | tail -n1)
-    body=$(echo "$response" | head -n -1)
+    http_code=$(echo "$response" | tail -n 1)
+    body=$(echo "$response" | awk 'NR>1' | sed '$d')
     
     if [ "$http_code" == "$expected_status" ]; then
         echo -e "${GREEN}✅ 通过${NC} (HTTP $http_code)"
@@ -74,8 +74,10 @@ test_api "创建告警规则" "POST" "/alarms/rules" \
     "201"
 if [ $? -eq 0 ]; then
     ((PASSED++))
-    ALARM_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "  告警 ID: $ALARM_ID"
+    ALARM_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"$//')
+    if [ ! -z "$ALARM_ID" ]; then
+        echo "  告警 ID: $ALARM_ID"
+    fi
 else
     ((FAILED++))
 fi
@@ -124,9 +126,11 @@ test_api "生成 PDF 报表" "POST" "/reports/generate" \
     "201"
 if [ $? -eq 0 ]; then
     ((PASSED++))
-    REPORT_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "  报表 ID: $REPORT_ID"
-    sleep 3 # 等待生成
+    REPORT_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"$//')
+    if [ ! -z "$REPORT_ID" ]; then
+        echo "  报表 ID: $REPORT_ID"
+        sleep 3 # 等待生成
+    fi
 else
     ((FAILED++))
 fi
@@ -157,9 +161,11 @@ test_api "生成 Excel 报表" "POST" "/reports/generate" \
     "201"
 if [ $? -eq 0 ]; then
     ((PASSED++))
-    REPORT_ID2=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "  报表 ID: $REPORT_ID2"
-    sleep 3
+    REPORT_ID2=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"$//')
+    if [ ! -z "$REPORT_ID2" ]; then
+        echo "  报表 ID: $REPORT_ID2"
+        sleep 3
+    fi
 else
     ((FAILED++))
 fi
@@ -189,8 +195,10 @@ test_api "创建工作流" "POST" "/expert/workflows" \
     "201"
 if [ $? -eq 0 ]; then
     ((PASSED++))
-    WORKFLOW_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "  工作流 ID: $WORKFLOW_ID"
+    WORKFLOW_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"$//')
+    if [ ! -z "$WORKFLOW_ID" ]; then
+        echo "  工作流 ID: $WORKFLOW_ID"
+    fi
 else
     ((FAILED++))
 fi
@@ -227,8 +235,10 @@ test_api "创建模板" "POST" "/expert/templates" \
     "201"
 if [ $? -eq 0 ]; then
     ((PASSED++))
-    TEMPLATE_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "  模板 ID: $TEMPLATE_ID"
+    TEMPLATE_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"$//')
+    if [ ! -z "$TEMPLATE_ID" ]; then
+        echo "  模板 ID: $TEMPLATE_ID"
+    fi
 else
     ((FAILED++))
 fi
@@ -262,8 +272,10 @@ test_api "创建批量操作" "POST" "/expert/batch" \
     "201"
 if [ $? -eq 0 ]; then
     ((PASSED++))
-    BATCH_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "  批量 ID: $BATCH_ID"
+    BATCH_ID=$(echo $body | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"$//')
+    if [ ! -z "$BATCH_ID" ]; then
+        echo "  批量 ID: $BATCH_ID"
+    fi
 else
     ((FAILED++))
 fi
