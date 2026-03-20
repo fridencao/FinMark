@@ -13,10 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { getAtoms, createAtom, deleteAtom, Atom } from '@/services/strategy';
 
 const typeConfig = (lang: 'zh' | 'en') => ({
-  hook: { label: lang === 'zh' ? '钩子' : 'Hook', color: 'bg-orange-100 text-orange-700' },
-  channel: { label: lang === 'zh' ? '渠道' : 'Channel', color: 'bg-blue-100 text-blue-700' },
-  content: { label: lang === 'zh' ? '内容' : 'Content', color: 'bg-purple-100 text-purple-700' },
-  risk: { label: lang === 'zh' ? '风险' : 'Risk', color: 'bg-red-100 text-red-700' },
+  hook: { label: lang === 'zh' ? '钩子' : 'Hook', badgeVariant: 'orange' as const },
+  channel: { label: lang === 'zh' ? '渠道' : 'Channel', badgeVariant: 'info' as const },
+  content: { label: lang === 'zh' ? '内容' : 'Content', badgeVariant: 'purple' as const },
+  risk: { label: lang === 'zh' ? '风险' : 'Risk', badgeVariant: 'error' as const },
 });
 
 export function BrainPage() {
@@ -113,7 +113,7 @@ export function BrainPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
+            <div key={i} className="h-48 bg-slate-100 dark:bg-slate-800 rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -122,18 +122,18 @@ export function BrainPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
-          <p className="text-slate-500">{t.subtitle}</p>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{t.title}</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t.subtitle}</p>
         </div>
-        <Button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold flex items-center gap-2 hover:bg-indigo-700" onClick={() => { setAtomForm({ name: '', type: 'hook', description: '', successRate: 80, tags: '' }); setDialogOpen(true); }}>
+        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => { setAtomForm({ name: '', type: 'hook', description: '', successRate: 80, tags: '' }); setDialogOpen(true); }}>
           <Plus className="w-5 h-5" />
           {t.createAtom}
         </Button>
       </div>
 
-      <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200">
+      <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
@@ -161,7 +161,7 @@ export function BrainPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredAtoms.map(atom => (
-          <Card key={atom.id} className="p-6 space-y-4 hover:shadow-md transition-shadow">
+          <Card key={atom.id} className="p-6 space-y-4 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -176,7 +176,7 @@ export function BrainPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm">{atom.name}</h4>
-                  <Badge variant="secondary" className={`text-xs ${types[atom.type].color}`}>
+                  <Badge variant={types[atom.type].badgeVariant} className="text-xs">
                     {types[atom.type].label}
                   </Badge>
                 </div>

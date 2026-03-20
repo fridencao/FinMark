@@ -8,7 +8,7 @@ import { MockModeBanner } from '@/components/common/MockModeBanner';
 export function AppLayout() {
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex">
+      <div className="min-h-screen bg-slate-50 text-slate-900 dark:text-slate-100 font-sans flex">
         <AppSidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           <AppHeader />

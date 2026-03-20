@@ -7,8 +7,9 @@ import * as templateService from '../services/templateService.js';
 import * as batchStrategyService from '../services/batchStrategyService.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import type { Router as ExpressRouter } from 'express';
 
-export const expertRouter = Router();
+export const expertRouter: ExpressRouter = Router();
 
 expertRouter.use(requireAuth);
 

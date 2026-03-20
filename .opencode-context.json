@@ -1,0 +1,29 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "project": "FinMark AI",
+  "description": "Enterprise multi-agent financial marketing platform",
+  "context": {
+    "type": "design",
+    "source": ".impeccable.md"
+  },
+  "design": {
+    "users": "Marketing managers, operations staff, and customer service managers at banks, securities firms, and other financial institutions. Professional, data-driven, need control.",
+    "brandPersonality": "Professional · Intelligent · Authoritative",
+    "aestheticDirection": "Clean enterprise SaaS with premium polish — Linear meets Bloomberg Terminal. Data-dense where needed, but never cluttered.",
+    "references": ["Linear (app.linear.io)", "Stripe Dashboard", "Bloomberg Terminal"],
+    "antiReferences": ["Consumer apps with playful illustrations", "Gradient-heavy AI startup hero sections"],
+    "theme": {
+      "mode": "light-first with full dark mode support",
+      "primaryColor": "indigo (current palette)",
+      "accentColors": "emerald (success), amber (warning), red (error)",
+      "typography": "Geist Variable (Vercel font)"
+    },
+    "designPrinciples": [
+      "Clarity over cleverness — every UI element earns its place",
+      "Confidence through transparency — show AI reasoning, full audit trail",
+      "Information density with breathing room — dense data, generous whitespace",
+      "Predictable patterns, purposeful motion — respect prefers-reduced-motion",
+      "Professional polish in every detail — consistent 0.625rem border-radius"
+    ]
+  }
+}

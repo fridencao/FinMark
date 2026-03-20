@@ -25,7 +25,6 @@ class BigDataService {
         'Authorization': `Bearer ${bigDataConfig.apiKey}`,
         'Content-Type': 'application/json',
       },
-      timeout: bigDataConfig.timeout,
     });
   }
 

@@ -50,9 +50,12 @@ export async function updateWorkflow(
     status: string;
   }>
 ) {
+  const updateData: any = { ...data };
+  if (data.status) updateData.status = data.status as any;
+  
   return prisma.workflow.update({
     where: { id },
-    data,
+    data: updateData,
   });
 }
 

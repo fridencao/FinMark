@@ -32,13 +32,13 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="w-64 border-r border-slate-200 bg-white flex flex-col h-screen">
-      <div className="p-6 border-b border-slate-100">
+    <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-screen">
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+          <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-600 rounded-lg flex items-center justify-center text-white">
             <ShieldCheck className="w-5 h-5" />
           </div>
-          <h1 className="font-bold text-xl tracking-tight">FinMark AI</h1>
+          <h1 className="font-bold text-xl tracking-tight text-slate-900 dark:text-slate-100">FinMark AI</h1>
         </div>
         <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
           {language === 'zh' ? '金融智能营销平台' : 'Financial AI Marketing'}
@@ -57,7 +57,7 @@ export function AppSidebar() {
               className={({ isActive }) =>
                 cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-                  isActive ? "bg-indigo-50 text-indigo-700 shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                  isActive ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900"
                 )
               }
             >
@@ -78,7 +78,7 @@ export function AppSidebar() {
               className={({ isActive }) =>
                 cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-                  isActive ? "bg-indigo-50 text-indigo-700 shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                  isActive ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900"
                 )
               }
             >
@@ -89,13 +89,13 @@ export function AppSidebar() {
         </div>
       </nav>
 
-      <div className="p-4 border-t border-slate-100">
-        <div className="bg-slate-50 rounded-2xl p-4">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-semibold text-slate-600">{t.systemStatus}</span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t.systemStatus}</span>
           </div>
-          <p className="text-[10px] text-slate-400 leading-relaxed">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
             {t.systemStatusDesc}
           </p>
         </div>

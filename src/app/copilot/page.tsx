@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight, Network, MessageSquare, Save, Loader2 } from 'lucide-react';
+import { ArrowRight, Network, MessageSquare, Save, Loader2, ShieldCheck, BotMessageSquare, Lock, BarChart3 } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { useCopilotStore } from '@/stores/copilot';
 import { GoalInputSection } from '@/components/copilot/GoalInputSection';
@@ -105,13 +105,15 @@ export default function CopilotPage() {
           <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">{t.proFeaturesTitle}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { title: t.auditTrail, desc: t.auditTrailDesc, icon: '🛡️' },
-              { title: t.rmCopilot, desc: t.rmCopilotDesc, icon: '💬' },
-              { title: t.privacyComputing, desc: t.privacyComputingDesc, icon: '🔐' },
-              { title: t.kycRisk, desc: t.kycRiskDesc, icon: '📊' },
+              { title: t.auditTrail, desc: t.auditTrailDesc, Icon: ShieldCheck, iconColor: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+              { title: t.rmCopilot, desc: t.rmCopilotDesc, Icon: BotMessageSquare, iconColor: 'text-blue-500', bgColor: 'bg-blue-50' },
+              { title: t.privacyComputing, desc: t.privacyComputingDesc, Icon: Lock, iconColor: 'text-emerald-500', bgColor: 'bg-emerald-50' },
+              { title: t.kycRisk, desc: t.kycRiskDesc, Icon: BarChart3, iconColor: 'text-amber-500', bgColor: 'bg-amber-50' },
             ].map((feature, idx) => (
               <div key={idx} className="flex items-start gap-4 p-4 bg-white rounded-xl border border-slate-100 text-left">
-                <div className="text-2xl">{feature.icon}</div>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${feature.bgColor}`}>
+                  <feature.Icon className={`w-5 h-5 ${feature.iconColor}`} />
+                </div>
                 <div>
                   <h5 className="text-sm font-bold text-slate-900">{feature.title}</h5>
                   <p className="text-xs text-slate-500 leading-relaxed">{feature.desc}</p>

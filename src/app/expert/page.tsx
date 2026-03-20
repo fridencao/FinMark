@@ -83,10 +83,9 @@ export function ExpertPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
-        <p className="text-slate-500">{t.subtitle}</p>
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{t.title}</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t.subtitle}</p>
       </div>
 
       {/* Module Selection */}

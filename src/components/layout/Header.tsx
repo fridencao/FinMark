@@ -39,7 +39,7 @@ export function AppHeader() {
   const currentTitle = getCurrentTitle();
 
   return (
-    <header className="h-16 border-b border-slate-200 bg-white px-8 flex items-center justify-between">
+    <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-8 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <LayoutDashboard className="w-4 h-4" />
@@ -48,13 +48,13 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center bg-slate-100 rounded-full p-1 mr-2">
+        <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-full p-1 mr-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setLanguage('zh')}
             className={`px-3 py-1 text-[10px] font-bold rounded-full transition-all ${
-              language === 'zh' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'
+              language === 'zh' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 dark:text-slate-500'
             }`}
           >
             中文
@@ -64,7 +64,7 @@ export function AppHeader() {
             size="sm"
             onClick={() => setLanguage('en')}
             className={`px-3 py-1 text-[10px] font-bold rounded-full transition-all ${
-              language === 'en' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'
+              language === 'en' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 dark:text-slate-500'
             }`}
           >
             EN

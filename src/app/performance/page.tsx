@@ -21,18 +21,32 @@ import {
   AlarmRule
 } from '@/services/performance';
 
+const CHART_COLORS = {
+  reach: '#3b82f6',
+  response: '#10b981',
+  conversion: '#8b5cf6',
+  enterprise: '#3b82f6',
+  sms: '#10b981',
+  app: '#8b5cf6',
+  call: '#f59e0b',
+  hnw: '#3b82f6',
+  mass: '#10b981',
+  young: '#8b5cf6',
+  retired: '#f59e0b',
+};
+
 const channelData = [
-  { name: '企微', value: 65, color: '#10b981' },
-  { name: '短信', value: 25, color: '#3b82f6' },
-  { name: 'APP', value: 8, color: '#8b5cf6' },
-  { name: '外呼', value: 2, color: '#f59e0b' },
+  { name: '企微', value: 65, color: CHART_COLORS.enterprise },
+  { name: '短信', value: 25, color: CHART_COLORS.sms },
+  { name: 'APP', value: 8, color: CHART_COLORS.app },
+  { name: '外呼', value: 2, color: CHART_COLORS.call },
 ];
 
 const segmentData = [
-  { name: '高净值', value: 40, color: '#3b82f6' },
-  { name: '大众理财', value: 30, color: '#10b981' },
-  { name: '年轻白领', value: 20, color: '#8b5cf6' },
-  { name: '退休养老', value: 10, color: '#f59e0b' },
+  { name: '高净值', value: 40, color: CHART_COLORS.hnw },
+  { name: '大众理财', value: 30, color: CHART_COLORS.mass },
+  { name: '年轻白领', value: 20, color: CHART_COLORS.young },
+  { name: '退休养老', value: 10, color: CHART_COLORS.retired },
 ];
 
 export function PerformancePage() {
@@ -241,10 +255,10 @@ export function PerformancePage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900">{t.title}</h2>
-          <p className="text-slate-500">{t.subtitle}</p>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{t.title}</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t.subtitle}</p>
         </div>
         <div className="flex items-center gap-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -281,10 +295,11 @@ export function PerformancePage() {
         </div>
       </div>
 
-      <TabsContent value="dashboard" className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Tabs value={activeTab}>
+        <TabsContent value="dashboard" className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric, idx) => (
-          <Card key={idx} className="p-6">
+          <Card key={idx} className="p-6 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-slate-500">{metric.title}</span>
               {metric.up ? (
@@ -302,8 +317,8 @@ export function PerformancePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6 lg:col-span-2">
-          <h3 className="font-bold text-lg mb-6">{t.reachTrend}</h3>
+        <Card className="p-6 lg:col-span-2 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
+          <h3 className="font-bold text-lg mb-6 text-slate-900 dark:text-slate-100">{t.reachTrend}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -311,15 +326,15 @@ export function PerformancePage() {
               <YAxis stroke="#94a3b8" fontSize={12} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
               <Legend />
-              <Line type="monotone" dataKey="reach" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} name={t.reach} />
-              <Line type="monotone" dataKey="response" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} name={t.response} />
-              <Line type="monotone" dataKey="conversion" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} name={t.conversion} />
+              <Line type="monotone" dataKey="reach" stroke={CHART_COLORS.reach} strokeWidth={2} dot={{ r: 4 }} name={t.reach} />
+              <Line type="monotone" dataKey="response" stroke={CHART_COLORS.response} strokeWidth={2} dot={{ r: 4 }} name={t.response} />
+              <Line type="monotone" dataKey="conversion" stroke={CHART_COLORS.conversion} strokeWidth={2} dot={{ r: 4 }} name={t.conversion} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="font-bold text-lg mb-6">{t.channelDist}</h3>
+        <Card className="p-6 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
+          <h3 className="font-bold text-lg mb-6 text-slate-900 dark:text-slate-100">{t.channelDist}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -343,8 +358,8 @@ export function PerformancePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6">
-          <h3 className="font-bold text-lg mb-6">{t.segmentDist}</h3>
+        <Card className="p-6 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
+          <h3 className="font-bold text-lg mb-6 text-slate-900 dark:text-slate-100">{t.segmentDist}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -364,8 +379,8 @@ export function PerformancePage() {
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6 lg:col-span-2">
-          <h3 className="font-bold text-lg mb-6">{t.activityRank}</h3>
+        <Card className="p-6 lg:col-span-2 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
+          <h3 className="font-bold text-lg mb-6 text-slate-900 dark:text-slate-100">{t.activityRank}</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -388,7 +403,7 @@ export function PerformancePage() {
                     <td className="py-4 text-sm text-right">{activity.conversion}</td>
                     <td className="py-4 text-sm text-right font-bold text-emerald-600">{activity.roi}</td>
                     <td className="py-4 text-center">
-                      <Badge className={activity.status === 'running' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}>
+                      <Badge variant={activity.status === 'running' ? 'info' : 'secondary'} className="text-[10px]">
                         {activity.status === 'running' ? t.running : t.completed}
                       </Badge>
                     </td>
@@ -407,7 +422,7 @@ export function PerformancePage() {
       </TabsContent>
 
       <TabsContent value="alarms">
-        <Card className="p-6">
+        <Card className="p-6 hover:shadow-md transition-shadow bg-white dark:bg-slate-900">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-bold text-lg">{language === 'zh' ? '告警规则' : 'Alarm Rules'}</h3>
@@ -444,10 +459,10 @@ export function PerformancePage() {
                     <tr key={alarm.id} className="border-b border-slate-50 hover:bg-slate-50">
                       <td className="py-4 font-medium text-sm">{alarm.name}</td>
                       <td className="py-4">
-                        <Badge className={
-                          alarm.type === 'metric' ? 'bg-blue-100 text-blue-700' :
-                          alarm.type === 'task' ? 'bg-purple-100 text-purple-700' :
-                          'bg-orange-100 text-orange-700'
+                        <Badge variant={
+                          alarm.type === 'metric' ? 'info' :
+                          alarm.type === 'task' ? 'purple' :
+                          'orange'
                         }>
                           {alarm.type === 'metric' ? (language === 'zh' ? '指标' : 'Metric') :
                            alarm.type === 'task' ? (language === 'zh' ? '任务' : 'Task') :
@@ -490,6 +505,7 @@ export function PerformancePage() {
           )}
         </Card>
       </TabsContent>
+      </Tabs>
 
       <Dialog open={alarmDialogOpen} onOpenChange={setAlarmDialogOpen}>
         <DialogContent>

@@ -26,7 +26,14 @@ export async function createTemplate(data: {
   description?: string;
 }) {
   return prisma.template.create({
-    data,
+    data: {
+      name: data.name,
+      type: data.type as any,
+      content: data.content,
+      variables: data.variables,
+      category: data.category,
+      description: data.description,
+    },
   });
 }
 
@@ -42,9 +49,13 @@ export async function updateTemplate(
     status: string;
   }>
 ) {
+  const updateData: any = { ...data };
+  if (data.type) updateData.type = data.type as any;
+  if (data.status) updateData.status = data.status as any;
+  
   return prisma.template.update({
     where: { id },
-    data,
+    data: updateData,
   });
 }
 
