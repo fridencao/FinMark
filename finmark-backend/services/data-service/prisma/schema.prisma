@@ -225,12 +225,12 @@ enum ScheduleStatus {
 model AlarmRule {
   id        String   @id @default(uuid())
   name      String
-  metric    String   // reach_rate, conversion_rate, roi, complaint_count, compliance_score
-  condition String   // lt, gt, lte, gte, eq
+  metric    String
+  condition String
   threshold Float
-  level     String   // warning, critical
+  level     String
   enabled   Boolean  @default(true)
-  channels  String   // JSON array: ["app_push", "sms", "wechat"]
+  channels  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   history   AlarmHistory[]
@@ -244,7 +244,7 @@ model AlarmHistory {
   rule           AlarmRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   triggeredAt    DateTime  @default(now())
   value          Float
-  status         String    // triggered, resolved, acknowledged
+  status         String
   acknowledged   Boolean   @default(false)
   acknowledgedAt DateTime?
   resolvedAt     DateTime?
@@ -257,13 +257,107 @@ model AlarmHistory {
 model Report {
   id          String   @id @default(uuid())
   name        String
-  type        String   // summary, scenario, channel, customer
-  format      String   // pdf, excel
-  status      String   // pending, generating, completed, failed
-  fileId      String?  // path to generated file
-  config      Json     // report configuration
+  type        String
+  format      String
+  status      String
+  fileId      String?
+  config      Json
   generatedAt DateTime?
   createdAt   DateTime @default(now())
 
   @@map("reports")
+}
+
+// ==================== 专家模式 - 工作流 ====================
+
+model Workflow {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  nodes       Json
+  edges       Json
+  enabled     Boolean           @default(false)
+  status      WorkflowStatus    @default(draft)
+  executions  WorkflowExecution[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("workflows")
+}
+
+model WorkflowExecution {
+  id          String        @id @default(uuid())
+  workflowId  String
+  workflow    Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status      ExecutionStatus @default(pending)
+  context     Json?
+  result      Json?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@map("workflow_executions")
+}
+
+enum WorkflowStatus {
+  draft
+  active
+  paused
+  archived
+}
+
+// ==================== 专家模式 - 模板 ====================
+
+model Template {
+  id          String       @id @default(uuid())
+  name        String
+  type        TemplateType
+  category    String?
+  content     String
+  variables   String[]
+  description String?
+  isSystem    Boolean      @default(false)
+  usageCount  Int          @default(0)
+  status      TemplateStatus @default(active)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("templates")
+}
+
+enum TemplateType {
+  sms
+  email
+  push
+  wechat
+  call
+}
+
+enum TemplateStatus {
+  active
+  inactive
+  archived
+}
+
+// ==================== 专家模式 - 批量策略 ====================
+
+model BatchStrategy {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  operations  Json
+  targetIds   String[]
+  status      BatchStatus @default(pending)
+  result      Json?
+  executedAt  DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@map("batch_strategies")
+}
+
+enum BatchStatus {
+  pending
+  processing
+  completed
+  failed
 }
