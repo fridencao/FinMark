@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: finmark
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-finmark_prod_password}
+      POSTGRES_DB: finmark
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - finmark-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finmark"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - finmark-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./finmark-backend/services/data-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://finmark:${POSTGRES_PASSWORD:-finmark_prod_password}@postgres:5432/finmark?schema=public
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CRM_BASE_URL: ${CRM_BASE_URL:-}
+      CRM_API_KEY: ${CRM_API_KEY:-}
+      BIG_DATA_GRAPHQL_URL: ${BIG_DATA_GRAPHQL_URL:-}
+      BIG_DATA_API_KEY: ${BIG_DATA_API_KEY:-}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - finmark-network
+    restart: unless-stopped
+    volumes:
+      - ./finmark-backend/services/data-service/reports:/app/reports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - finmark-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  finmark-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
