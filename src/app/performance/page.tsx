@@ -1,16 +1,25 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Download, Calendar, ArrowUpRight } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { BarChart3, TrendingUp, TrendingDown, Download, Calendar, ArrowUpRight, Plus, Pencil, Trash2, Bell, BellOff } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { getDashboardMetrics, getDashboardTrend, getActivityReports } from '@/services/performance';
+import {
+  getDashboardMetrics, getDashboardTrend, getActivityReports,
+  getAlarmRules, createAlarmRule, updateAlarmRule, deleteAlarmRule, toggleAlarmRule,
+  AlarmRule
+} from '@/services/performance';
 
 const channelData = [
   { name: '企微', value: 65, color: '#10b981' },
@@ -29,6 +38,112 @@ const segmentData = [
 export function PerformancePage() {
   const { language } = useAppStore();
   const [timeRange, setTimeRange] = useState('week');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [alarmDialogOpen, setAlarmDialogOpen] = useState(false);
+  const [editingAlarm, setEditingAlarm] = useState<AlarmRule | null>(null);
+  const [alarmForm, setAlarmForm] = useState({
+    name: '',
+    type: 'metric' as 'metric' | 'task' | 'system',
+    metric: 'reach',
+    operator: '>',
+    value: '',
+    duration: '',
+    notifyMethods: [] as string[],
+    notifyUsers: '',
+  });
+  const [alarmError, setAlarmError] = useState('');
+
+  const qc = useQueryClient();
+
+  const { data: alarmData } = useQuery({
+    queryKey: ['performance', 'alarms'],
+    queryFn: getAlarmRules,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createAlarmRule,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['performance', 'alarms'] });
+      setAlarmDialogOpen(false);
+      resetForm();
+    },
+    onError: (err: any) => setAlarmError(err?.message || 'Create failed'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<AlarmRule> }) =>
+      updateAlarmRule(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['performance', 'alarms'] });
+      setAlarmDialogOpen(false);
+      resetForm();
+    },
+    onError: (err: any) => setAlarmError(err?.message || 'Update failed'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAlarmRule,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['performance', 'alarms'] }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'enabled' | 'disabled' }) =>
+      toggleAlarmRule(id, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['performance', 'alarms'] }),
+  });
+
+  function resetForm() {
+    setEditingAlarm(null);
+    setAlarmForm({
+      name: '', type: 'metric', metric: 'reach', operator: '>', value: '',
+      duration: '', notifyMethods: [], notifyUsers: '',
+    });
+    setAlarmError('');
+  }
+
+  function openCreate() {
+    resetForm();
+    setAlarmDialogOpen(true);
+  }
+
+  function openEdit(alarm: AlarmRule) {
+    setEditingAlarm(alarm);
+    setAlarmForm({
+      name: alarm.name,
+      type: alarm.type,
+      metric: alarm.condition.metric,
+      operator: alarm.condition.operator,
+      value: String(alarm.condition.value),
+      duration: String(alarm.condition.duration || ''),
+      notifyMethods: alarm.notify.methods,
+      notifyUsers: alarm.notify.users.join(', '),
+    });
+    setAlarmDialogOpen(true);
+  }
+
+  function handleAlarmSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setAlarmError('');
+    const data: Partial<AlarmRule> = {
+      name: alarmForm.name,
+      type: alarmForm.type,
+      condition: {
+        metric: alarmForm.metric,
+        operator: alarmForm.operator,
+        value: Number(alarmForm.value),
+        ...(alarmForm.duration ? { duration: Number(alarmForm.duration) } : {}),
+      },
+      notify: {
+        methods: alarmForm.notifyMethods.length ? alarmForm.notifyMethods : ['email'],
+        users: alarmForm.notifyUsers.split(',').map(u => u.trim()).filter(Boolean),
+      },
+    };
+    if (editingAlarm) {
+      updateMutation.mutate({ id: editingAlarm.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  }
 
   const { data: metricsData } = useQuery({
     queryKey: ['performance', 'metrics', timeRange],
@@ -132,15 +247,24 @@ export function PerformancePage() {
           <p className="text-slate-500">{t.subtitle}</p>
         </div>
         <div className="flex items-center gap-4">
-          <Tabs value={timeRange} onValueChange={setTimeRange}>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="today">{t.today}</TabsTrigger>
-              <TabsTrigger value="week">{t.week}</TabsTrigger>
-              <TabsTrigger value="month">{t.month}</TabsTrigger>
-              <TabsTrigger value="quarter">{t.quarter}</TabsTrigger>
-              <TabsTrigger value="year">{t.year}</TabsTrigger>
+              <TabsTrigger value="dashboard">{language === 'zh' ? '数据看板' : 'Dashboard'}</TabsTrigger>
+              <TabsTrigger value="alarms">{language === 'zh' ? '告警规则' : 'Alarm Rules'}</TabsTrigger>
             </TabsList>
           </Tabs>
+          {activeTab === 'dashboard' && (
+            <Tabs value={timeRange} onValueChange={setTimeRange}>
+              <TabsList>
+                <TabsTrigger value="today">{t.today}</TabsTrigger>
+                <TabsTrigger value="week">{t.week}</TabsTrigger>
+                <TabsTrigger value="month">{t.month}</TabsTrigger>
+                <TabsTrigger value="quarter">{t.quarter}</TabsTrigger>
+                <TabsTrigger value="year">{t.year}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {activeTab === 'dashboard' && (
           <Button variant="outline" className="flex items-center gap-2" onClick={() => {
             const headers = ['活动', '触达', '响应率', '转化率', 'ROI', '状态'];
             const rows = activityData.map((a: any) => [a.name, a.reach, a.response, a.conversion, a.roi, a.status]);
@@ -153,10 +277,12 @@ export function PerformancePage() {
             <Download className="w-4 h-4" />
             {t.export}
           </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <TabsContent value="dashboard" className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric, idx) => (
           <Card key={idx} className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -278,6 +404,217 @@ export function PerformancePage() {
           </div>
         </Card>
       </div>
+      </TabsContent>
+
+      <TabsContent value="alarms">
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-bold text-lg">{language === 'zh' ? '告警规则' : 'Alarm Rules'}</h3>
+              <p className="text-sm text-slate-500">
+                {language === 'zh' ? '设置指标阈值告警，自动通知相关人员' : 'Set metric threshold alerts and auto-notify relevant staff'}
+              </p>
+            </div>
+            <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-2" />
+              {language === 'zh' ? '添加规则' : 'Add Rule'}
+            </Button>
+          </div>
+
+          {(alarmData?.data?.length ?? 0) === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>{language === 'zh' ? '暂无告警规则' : 'No alarm rules configured'}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left text-xs font-bold text-slate-400 uppercase py-3">{language === 'zh' ? '规则名称' : 'Rule Name'}</th>
+                    <th className="text-left text-xs font-bold text-slate-400 uppercase py-3">{language === 'zh' ? '类型' : 'Type'}</th>
+                    <th className="text-left text-xs font-bold text-slate-400 uppercase py-3">{language === 'zh' ? '条件' : 'Condition'}</th>
+                    <th className="text-left text-xs font-bold text-slate-400 uppercase py-3">{language === 'zh' ? '通知方式' : 'Notify'}</th>
+                    <th className="text-center text-xs font-bold text-slate-400 uppercase py-3">{language === 'zh' ? '状态' : 'Status'}</th>
+                    <th className="text-right text-xs font-bold text-slate-400 uppercase py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alarmData?.data?.map((alarm: AlarmRule) => (
+                    <tr key={alarm.id} className="border-b border-slate-50 hover:bg-slate-50">
+                      <td className="py-4 font-medium text-sm">{alarm.name}</td>
+                      <td className="py-4">
+                        <Badge className={
+                          alarm.type === 'metric' ? 'bg-blue-100 text-blue-700' :
+                          alarm.type === 'task' ? 'bg-purple-100 text-purple-700' :
+                          'bg-orange-100 text-orange-700'
+                        }>
+                          {alarm.type === 'metric' ? (language === 'zh' ? '指标' : 'Metric') :
+                           alarm.type === 'task' ? (language === 'zh' ? '任务' : 'Task') :
+                           (language === 'zh' ? '系统' : 'System')}
+                        </Badge>
+                      </td>
+                      <td className="py-4 text-sm text-slate-600">
+                        {alarm.condition.metric} {alarm.condition.operator} {alarm.condition.value}
+                        {alarm.condition.duration ? ` (${language === 'zh' ? '持续' : 'for'} ${alarm.condition.duration}m)` : ''}
+                      </td>
+                      <td className="py-4 text-sm text-slate-600">{alarm.notify.methods.join(', ')}</td>
+                      <td className="py-4 text-center">
+                        {alarm.status === 'enabled' ? (
+                          <Bell className="w-4 h-4 text-emerald-500 mx-auto" />
+                        ) : (
+                          <BellOff className="w-4 h-4 text-slate-300 mx-auto" />
+                        )}
+                      </td>
+                      <td className="py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Switch
+                            checked={alarm.status === 'enabled'}
+                            onCheckedChange={(checked) =>
+                              toggleMutation.mutate({ id: alarm.id, status: checked ? 'enabled' : 'disabled' })
+                            }
+                          />
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(alarm)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-red-500" onClick={() => deleteMutation.mutate(alarm.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </TabsContent>
+
+      <Dialog open={alarmDialogOpen} onOpenChange={setAlarmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingAlarm ? (language === 'zh' ? '编辑规则' : 'Edit Rule') : (language === 'zh' ? '添加规则' : 'Add Rule')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAlarmSubmit} className="space-y-4">
+            {alarmError && <p className="text-sm text-red-500">{alarmError}</p>}
+            <div className="space-y-2">
+              <Label>{language === 'zh' ? '规则名称' : 'Rule Name'}</Label>
+              <Input
+                value={alarmForm.name}
+                onChange={e => setAlarmForm(f => ({ ...f, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '类型' : 'Type'}</Label>
+                <Select value={alarmForm.type} onValueChange={v => setAlarmForm(f => ({ ...f, type: v as any }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="metric">{language === 'zh' ? '指标' : 'Metric'}</SelectItem>
+                    <SelectItem value="task">{language === 'zh' ? '任务' : 'Task'}</SelectItem>
+                    <SelectItem value="system">{language === 'zh' ? '系统' : 'System'}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '指标' : 'Metric'}</Label>
+                <Select value={alarmForm.metric} onValueChange={v => setAlarmForm(f => ({ ...f, metric: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reach">{language === 'zh' ? '触达量' : 'Reach'}</SelectItem>
+                    <SelectItem value="response">{language === 'zh' ? '响应率' : 'Response Rate'}</SelectItem>
+                    <SelectItem value="conversion">{language === 'zh' ? '转化率' : 'Conversion'}</SelectItem>
+                    <SelectItem value="roi">ROI</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '运算符' : 'Operator'}</Label>
+                <Select value={alarmForm.operator} onValueChange={v => setAlarmForm(f => ({ ...f, operator: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=">">&gt;</SelectItem>
+                    <SelectItem value="<">&lt;</SelectItem>
+                    <SelectItem value=">=">&gt;=</SelectItem>
+                    <SelectItem value="<=">&lt;=</SelectItem>
+                    <SelectItem value="=">=</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '阈值' : 'Threshold'}</Label>
+                <Input
+                  type="number"
+                  value={alarmForm.value}
+                  onChange={e => setAlarmForm(f => ({ ...f, value: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '持续时间(分钟)' : 'Duration (min)'}</Label>
+                <Input
+                  type="number"
+                  placeholder={language === 'zh' ? '可选' : 'Optional'}
+                  value={alarmForm.duration}
+                  onChange={e => setAlarmForm(f => ({ ...f, duration: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '通知用户' : 'Notify Users'}</Label>
+                <Input
+                  placeholder={language === 'zh' ? '逗号分隔' : 'comma separated'}
+                  value={alarmForm.notifyUsers}
+                  onChange={e => setAlarmForm(f => ({ ...f, notifyUsers: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{language === 'zh' ? '通知方式' : 'Notify Methods'}</Label>
+              <div className="flex gap-4">
+                {(['email', 'sms', 'wechat'] as const).map(method => (
+                  <label key={method} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={alarmForm.notifyMethods.includes(method)}
+                      onChange={e => {
+                        setAlarmForm(f => ({
+                          ...f,
+                          notifyMethods: e.target.checked
+                            ? [...f.notifyMethods, method]
+                            : f.notifyMethods.filter(m => m !== method),
+                        }));
+                      }}
+                    />
+                    {method}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAlarmDialogOpen(false)}>
+                {language === 'zh' ? '取消' : 'Cancel'}
+              </Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={createMutation.isPending || updateMutation.isPending}>
+                {createMutation.isPending || updateMutation.isPending
+                  ? (language === 'zh' ? '保存中...' : 'Saving...')
+                  : (language === 'zh' ? '保存' : 'Save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
