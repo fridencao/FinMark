@@ -46,6 +46,7 @@ app.use('/api/strategy', strategyRouter);
 app.use('/api/agents', agentProxyRouter);
 app.use('/api/alarms', alarmRouter);
 app.use('/api/reports', reportRouter);
+app.use('/api/expert', expertRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
