@@ -1,5 +1,8 @@
 import { Queue, Worker, RedisOptions } from 'bullmq';
 import { prisma } from '../config/database.js';
+import { sendAlarmEmail, sendAlarmSms } from '../services/notificationService.js';
+import { getComplaintCount } from '../services/complaintService.js';
+import { getComplianceScore } from '../services/complianceScoreService.js';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -93,12 +96,10 @@ async function getMetricValue(metric: string): Promise<number> {
       return rois.length > 0 ? rois.reduce((a, b) => a + b, 0) / rois.length : 0;
     }
     case 'complaint_count': {
-      // TODO: Implement when complaint tracking exists
-      return 0;
+      return await getComplaintCount(yesterday, now);
     }
     case 'compliance_score': {
-      // TODO: Implement when compliance scoring exists
-      return 100;
+      return await getComplianceScore(yesterday, now);
     }
     default:
       return 0;
@@ -123,8 +124,42 @@ function checkCondition(value: number, condition: string, threshold: number): bo
 }
 
 async function sendNotification(rule: any, value: number) {
-  // TODO: Implement notification sending (email, SMS, etc.)
-  console.log(`ALARM [${rule.level}]: ${rule.name} - Value: ${value}, Threshold: ${rule.threshold}`);
+  let channelTypes: string[] = [];
+  try {
+    channelTypes = typeof rule.channels === 'string' ? JSON.parse(rule.channels) : (rule.channels || []);
+  } catch {
+    channelTypes = [];
+  }
+
+  const triggeredAt = new Date();
+  const alarmInfo = {
+    name: rule.name,
+    level: rule.level,
+    metric: rule.metric,
+    currentValue: value,
+    threshold: rule.threshold,
+    condition: rule.condition,
+    triggeredAt,
+  };
+
+  const notifications: Array<{ type: string; status: string }> = [];
+
+  if (channelTypes.includes('email')) {
+    const ok = await sendAlarmEmail(alarmInfo);
+    notifications.push({ type: 'email', status: ok ? 'sent' : 'failed' });
+  }
+
+  if (channelTypes.includes('sms')) {
+    const ok = await sendAlarmSms(alarmInfo);
+    notifications.push({ type: 'sms', status: ok ? 'sent' : 'failed' });
+  }
+
+  if (notifications.length > 0) {
+    const sent = notifications.filter((n) => n.status === 'sent').length;
+    console.log(`[NOTIFICATIONS] ${rule.name}: ${sent}/${notifications.length} sent`);
+  } else {
+    console.log(`ALARM [${rule.level}]: ${rule.name} - Value: ${value}, Threshold: ${rule.threshold} (no channels configured)`);
+  }
 }
 
 export const alarmQueue = {
