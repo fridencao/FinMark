@@ -1,6 +1,35 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useStrategyStore } from '@/stores/strategy';
+import type { StrategyAtom, ABTestConfig, TaskSchedule } from '@/services/strategy';
+
+function createAtom(overrides: Partial<StrategyAtom> = {}): StrategyAtom {
+  return {
+    id: '1',
+    name: 'Atom 1',
+    type: 'hook',
+    usageCount: 10,
+    tags: [],
+    status: 'active',
+    version: '1.0.0',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function createSchedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
+  return {
+    id: '1',
+    name: 'Schedule 1',
+    triggerType: 'periodic',
+    triggerConfig: {},
+    channels: [],
+    status: 'active',
+    createdAt: '2024-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
 
 describe('Strategy Store', () => {
   beforeEach(() => {
@@ -60,7 +89,7 @@ describe('Strategy Store', () => {
   describe('setAtoms', () => {
     it('should set atoms', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const mockAtoms = [{ id: '1', name: 'Atom 1', type: 'hook' as const, usageCount: 10, tags: [], status: 'active' }];
+      const mockAtoms = [createAtom({ id: '1', name: 'Atom 1', type: 'hook', usageCount: 10, tags: [], status: 'active' })];
 
       act(() => {
         result.current.setAtoms(mockAtoms);
@@ -73,7 +102,7 @@ describe('Strategy Store', () => {
   describe('setCurrentAtom', () => {
     it('should set current atom', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const atom = { id: '1', name: 'Atom 1', type: 'hook' as const, usageCount: 10, tags: [], status: 'active' };
+      const atom = createAtom({ id: '1', name: 'Atom 1', type: 'hook', usageCount: 10, tags: [], status: 'active' });
 
       act(() => {
         result.current.setCurrentAtom(atom);
@@ -86,7 +115,7 @@ describe('Strategy Store', () => {
   describe('setABTests', () => {
     it('should set AB tests', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const mockTests = [{ id: '1', name: 'Test 1', type: 'content' as const, branches: [], metric: 'conversion', status: 'draft' as const }];
+      const mockTests: ABTestConfig[] = [{ id: '1', name: 'Test 1', type: 'content', branches: [], metric: 'conversion', status: 'draft' }];
 
       act(() => {
         result.current.setABTests(mockTests);
@@ -99,7 +128,7 @@ describe('Strategy Store', () => {
   describe('setSchedules', () => {
     it('should set schedules', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const mockSchedules = [{ id: '1', name: 'Schedule 1', triggerType: 'periodic' as const, triggerConfig: {}, channels: [], status: 'active' as const }];
+      const mockSchedules = [createSchedule({ id: '1', name: 'Schedule 1', triggerType: 'periodic', triggerConfig: {}, channels: [], status: 'active' })];
 
       act(() => {
         result.current.setSchedules(mockSchedules);
@@ -172,7 +201,7 @@ describe('Strategy Store', () => {
   describe('addAtom', () => {
     it('should add atom', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const atom = { id: '1', name: 'New Atom', type: 'hook' as const, usageCount: 0, tags: [], status: 'active' };
+      const atom = createAtom({ id: '1', name: 'New Atom', type: 'hook', usageCount: 0, tags: [], status: 'active' });
 
       act(() => {
         result.current.addAtom(atom);
@@ -185,7 +214,7 @@ describe('Strategy Store', () => {
   describe('updateAtom', () => {
     it('should update atom when id matches', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const atom = { id: '1', name: 'Original', type: 'hook' as const, usageCount: 0, tags: [], status: 'active' };
+      const atom = createAtom({ id: '1', name: 'Original', type: 'hook', usageCount: 0, tags: [], status: 'active' });
 
       act(() => {
         result.current.setAtoms([atom]);
@@ -197,8 +226,8 @@ describe('Strategy Store', () => {
 
     it('should not modify atoms when id does not match', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const atom1 = { id: '1', name: 'Atom 1', type: 'hook' as const, usageCount: 0, tags: [], status: 'active' };
-      const atom2 = { id: '2', name: 'Atom 2', type: 'content' as const, usageCount: 0, tags: [], status: 'active' };
+      const atom1 = createAtom({ id: '1', name: 'Atom 1', type: 'hook', usageCount: 0, tags: [], status: 'active' });
+      const atom2 = createAtom({ id: '2', name: 'Atom 2', type: 'content', usageCount: 0, tags: [], status: 'active' });
 
       act(() => {
         result.current.setAtoms([atom1, atom2]);
@@ -213,7 +242,7 @@ describe('Strategy Store', () => {
   describe('removeAtom', () => {
     it('should remove atom', () => {
       const { result } = renderHook(() => useStrategyStore());
-      const atom = { id: '1', name: 'Atom 1', type: 'hook' as const, usageCount: 0, tags: [], status: 'active' };
+      const atom = createAtom({ id: '1', name: 'Atom 1', type: 'hook', usageCount: 0, tags: [], status: 'active' });
 
       act(() => {
         result.current.setAtoms([atom]);
@@ -229,10 +258,10 @@ describe('Strategy Store', () => {
       const { result } = renderHook(() => useStrategyStore());
 
       act(() => {
-        result.current.setAtoms([{ id: '1' } as any]);
-        result.current.setCurrentAtom({ id: '1' } as any);
-        result.current.setABTests([{ id: '1' } as any]);
-        result.current.setSchedules([{ id: '1' } as any]);
+        result.current.setAtoms([createAtom({ id: '1' })]);
+        result.current.setCurrentAtom(createAtom({ id: '1' }));
+        result.current.setABTests([{ id: '1' } as ABTestConfig]);
+        result.current.setSchedules([{ id: '1' } as TaskSchedule]);
         result.current.setLoading(true);
         result.current.setError('error');
         result.current.setTypeFilter('hook');

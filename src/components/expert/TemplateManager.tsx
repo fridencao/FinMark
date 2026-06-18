@@ -293,7 +293,7 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
             <h3 className="font-semibold text-slate-700">模板列表</h3>
             <div className="flex items-center gap-2">
               <Dialog>
-                <DialogTrigger asChild>
+                <DialogTrigger>
                   <Button size="sm" variant="outline">
                     <Download className="w-4 h-4" />
                   </Button>
@@ -316,7 +316,7 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
               </Dialog>
 
               <Dialog>
-                <DialogTrigger asChild>
+                <DialogTrigger>
                   <Button size="sm" variant="outline">
                     <Upload className="w-4 h-4" />
                   </Button>

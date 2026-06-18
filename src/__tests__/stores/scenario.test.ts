@@ -1,6 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useScenarioStore } from '@/stores/scenario';
+import type { Scenario } from '@/services/scenario';
+
+function createScenario(overrides: Partial<Scenario> = {}): Scenario {
+  return {
+    id: '1',
+    title: 'Scenario 1',
+    goal: 'Goal 1',
+    category: '',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
 
 describe('Scenario Store', () => {
   beforeEach(() => {
@@ -45,9 +58,7 @@ describe('Scenario Store', () => {
   describe('setScenarios', () => {
     it('should set scenarios', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const mockScenarios = [
-        { id: '1', title: 'Scenario 1', goal: 'Goal 1' } as const,
-      ];
+      const mockScenarios = [createScenario({ id: '1', title: 'Scenario 1', goal: 'Goal 1' })];
 
       act(() => {
         result.current.setScenarios(mockScenarios);
@@ -60,7 +71,7 @@ describe('Scenario Store', () => {
   describe('setCurrentScenario', () => {
     it('should set current scenario', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario = { id: '1', title: 'Scenario 1', goal: 'Goal 1' } as const;
+      const scenario = createScenario({ id: '1', title: 'Scenario 1', goal: 'Goal 1' });
 
       act(() => {
         result.current.setCurrentScenario(scenario);
@@ -131,7 +142,7 @@ describe('Scenario Store', () => {
   describe('addScenario', () => {
     it('should add scenario to list', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario = { id: '1', title: 'New Scenario', goal: 'Goal' } as const;
+      const scenario = createScenario({ id: '1', title: 'New Scenario', goal: 'Goal' });
 
       act(() => {
         result.current.addScenario(scenario);
@@ -143,8 +154,8 @@ describe('Scenario Store', () => {
 
     it('should append to existing scenarios', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario1 = { id: '1', title: 'Scenario 1', goal: 'Goal' } as const;
-      const scenario2 = { id: '2', title: 'Scenario 2', goal: 'Goal' } as const;
+      const scenario1 = createScenario({ id: '1', title: 'Scenario 1', goal: 'Goal' });
+      const scenario2 = createScenario({ id: '2', title: 'Scenario 2', goal: 'Goal' });
 
       act(() => {
         result.current.addScenario(scenario1);
@@ -158,7 +169,7 @@ describe('Scenario Store', () => {
   describe('updateScenario', () => {
     it('should update existing scenario', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario = { id: '1', title: 'Original', goal: 'Goal' } as const;
+      const scenario = createScenario({ id: '1', title: 'Original', goal: 'Goal' });
 
       act(() => {
         result.current.setScenarios([scenario]);
@@ -170,8 +181,8 @@ describe('Scenario Store', () => {
 
     it('should not affect other scenarios', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario1 = { id: '1', title: 'Scenario 1', goal: 'Goal' } as const;
-      const scenario2 = { id: '2', title: 'Scenario 2', goal: 'Goal' } as const;
+      const scenario1 = createScenario({ id: '1', title: 'Scenario 1', goal: 'Goal' });
+      const scenario2 = createScenario({ id: '2', title: 'Scenario 2', goal: 'Goal' });
 
       act(() => {
         result.current.setScenarios([scenario1, scenario2]);
@@ -186,7 +197,7 @@ describe('Scenario Store', () => {
   describe('removeScenario', () => {
     it('should remove scenario from list', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario = { id: '1', title: 'Scenario 1', goal: 'Goal' } as const;
+      const scenario = createScenario();
 
       act(() => {
         result.current.setScenarios([scenario]);
@@ -198,8 +209,8 @@ describe('Scenario Store', () => {
 
     it('should not affect other scenarios', () => {
       const { result } = renderHook(() => useScenarioStore());
-      const scenario1 = { id: '1', title: 'Scenario 1', goal: 'Goal' } as const;
-      const scenario2 = { id: '2', title: 'Scenario 2', goal: 'Goal' } as const;
+      const scenario1 = createScenario({ id: '1', title: 'Scenario 1', goal: 'Goal' });
+      const scenario2 = createScenario({ id: '2', title: 'Scenario 2', goal: 'Goal' });
 
       act(() => {
         result.current.setScenarios([scenario1, scenario2]);
@@ -216,8 +227,8 @@ describe('Scenario Store', () => {
       const { result } = renderHook(() => useScenarioStore());
 
       act(() => {
-        result.current.setScenarios([{ id: '1' } as const]);
-        result.current.setCurrentScenario({ id: '1' } as const);
+        result.current.setScenarios([createScenario({ id: '1' })]);
+        result.current.setCurrentScenario(createScenario({ id: '1' }));
         result.current.setLoading(true);
         result.current.setError('error');
         result.current.setCategory('marketing');

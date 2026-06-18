@@ -20,7 +20,7 @@ export default function CopilotPage() {
   const [showRMChat, setShowRMChat] = useState(false);
   const [showABTest, setShowABTest] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
-  const draftTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     return () => {

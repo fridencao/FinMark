@@ -4,6 +4,7 @@ import {
   ReactFlow,
   Controls,
   Background,
+  BackgroundVariant,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -130,7 +131,7 @@ export function WorkflowBuilder() {
   const queryClient = useQueryClient();
   
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; description: string }) => createWorkflow(data),
+    mutationFn: (data: { name: string; description: string }) => createWorkflow({ ...data, nodes: [], edges: [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
     },
@@ -433,7 +434,7 @@ export function WorkflowBuilder() {
                 }}
               >
                 <Controls />
-                <Background variant="dots" gap={15} size={1} />
+                <Background variant={BackgroundVariant.Dots} gap={15} size={1} />
                 
                 {isEditing && (
                   <Panel position="top-right" className="bg-white p-4 rounded-lg shadow-lg border border-slate-200">
@@ -441,7 +442,7 @@ export function WorkflowBuilder() {
                     <div className="space-y-2">
                       {nodeTypesConfig.map((nodeType) => (
                         <Dialog key={nodeType.type} open={showNodeDialog} onOpenChange={setShowNodeDialog}>
-                          <DialogTrigger asChild>
+                          <DialogTrigger>
                             <Button
                               variant="outline"
                               size="sm"
@@ -501,7 +502,7 @@ export function WorkflowBuilder() {
             <div>
               <Label>节点名称</Label>
               <Input
-                value={selectedNode.data?.label || ''}
+                value={(selectedNode.data?.label as string) || ''}
                 onChange={(e) => {
                   const newLabel = e.target.value;
                   setNodes((nds) =>
@@ -523,9 +524,9 @@ export function WorkflowBuilder() {
               <div>
                 <Label>触发类型</Label>
                 <Select
-                  value={selectedNode.data?.config?.type || ''}
+                  value={(selectedNode.data?.config as Record<string, any>)?.type || ''}
                   onValueChange={(value) =>
-                    handleUpdateNodeConfig({ ...selectedNode.data?.config, type: value })
+                    handleUpdateNodeConfig({ ...((selectedNode.data?.config as Record<string, any>) || {}), type: value })
                   }
                   disabled={!isEditing}
                 >
@@ -548,9 +549,9 @@ export function WorkflowBuilder() {
                 <div>
                   <Label>动作类型</Label>
                   <Select
-                    value={selectedNode.data?.config?.actionType || ''}
+                    value={(selectedNode.data?.config as Record<string, any>)?.actionType || ''}
                     onValueChange={(value) =>
-                      handleUpdateNodeConfig({ ...selectedNode.data?.config, actionType: value })
+                      handleUpdateNodeConfig({ ...((selectedNode.data?.config as Record<string, any>) || {}), actionType: value })
                     }
                     disabled={!isEditing}
                   >
@@ -567,17 +568,17 @@ export function WorkflowBuilder() {
                   </Select>
                 </div>
 
-                {selectedNode.data?.config?.actionType && (
+                {(selectedNode.data?.config as Record<string, any>)?.actionType && (
                   <div>
                     <Label>消息内容</Label>
                     <Textarea
-                      value={selectedNode.data?.config?.content || ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig({
-                          ...selectedNode.data?.config,
-                          content: e.target.value,
-                        })
-                      }
+                  value={(selectedNode.data?.config as Record<string, any>)?.content || ''}
+                  onChange={(e) =>
+                    handleUpdateNodeConfig({
+                      ...((selectedNode.data?.config as Record<string, any>) || {}),
+                      content: e.target.value,
+                    })
+                  }
                       disabled={!isEditing}
                       rows={4}
                       placeholder="输入消息模板内容..."
@@ -592,10 +593,10 @@ export function WorkflowBuilder() {
                 <Label>等待时长 (小时)</Label>
                 <Input
                   type="number"
-                  value={selectedNode.data?.config?.duration || ''}
+                  value={(selectedNode.data?.config as Record<string, any>)?.duration || ''}
                   onChange={(e) =>
                     handleUpdateNodeConfig({
-                      ...selectedNode.data?.config,
+                      ...((selectedNode.data?.config as Record<string, any>) || {}),
                       duration: e.target.value,
                     })
                   }
@@ -608,10 +609,10 @@ export function WorkflowBuilder() {
               <div>
                 <Label>条件表达式</Label>
                 <Textarea
-                  value={selectedNode.data?.config?.expression || ''}
+                  value={(selectedNode.data?.config as Record<string, any>)?.expression || ''}
                   onChange={(e) =>
                     handleUpdateNodeConfig({
-                      ...selectedNode.data?.config,
+                      ...((selectedNode.data?.config as Record<string, any>) || {}),
                       expression: e.target.value,
                     })
                   }
