@@ -52,14 +52,16 @@ export const updateUserStatus = (id: string, status: 'enabled' | 'disabled') =>
 export const resetPassword = (id: string) =>
   api.post(`/users/${id}/reset-password`);
 
-export const getRoles = () => api.get('/users/roles');
+export const getRoles = () => api.get('/permissions/roles');
 
-export const createRole = (data: Partial<Role>) => api.post('/users/roles', data);
+export const createRole = (data: Partial<Role>) => api.post('/permissions/roles', data);
 
 export const updateRole = (id: string, data: Partial<Role>) =>
-  api.put(`/users/roles/${id}`, data);
+  api.put(`/permissions/roles/${id}`, data);
 
-export const deleteRole = (id: string) => api.delete(`/users/roles/${id}`);
+export const deleteRole = (id: string) => api.delete(`/permissions/roles/${id}`);
+
+export const getPermissions = () => api.get('/permissions');
 
 export const getCurrentUser = () => api.get('/users/me');
 

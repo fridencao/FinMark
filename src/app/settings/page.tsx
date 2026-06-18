@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Edit, Trash2, RefreshCw, Check, X, ExternalLink } from 'lucide-react';
+import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Edit, Trash2, RefreshCw, Check, X, ExternalLink, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, createUser, updateUser, deleteUser, getRoles, type User, type Role, type Permission } from '@/services/user';
+import { getUsers, createUser, updateUser, deleteUser, getRoles, getPermissions, createRole, updateRole, deleteRole, type User, type Role, type Permission } from '@/services/user';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,35 +24,9 @@ interface Integration {
   lastSync?: string;
 }
 
-const defaultPermissions: Permission[] = [
-  { id: 'user_view', name: '查看用户', code: 'user:view', category: '用户管理', description: '查看用户列表和详情' },
-  { id: 'user_create', name: '创建用户', code: 'user:create', category: '用户管理', description: '创建新用户' },
-  { id: 'user_edit', name: '编辑用户', code: 'user:edit', category: '用户管理', description: '修改用户信息' },
-  { id: 'user_delete', name: '删除用户', code: 'user:delete', category: '用户管理', description: '删除用户账号' },
-  { id: 'role_view', name: '查看角色', code: 'role:view', category: '角色管理', description: '查看角色列表和详情' },
-  { id: 'role_create', name: '创建角色', code: 'role:create', category: '角色管理', description: '创建新角色' },
-  { id: 'role_edit', name: '编辑角色', code: 'role:edit', category: '角色管理', description: '修改角色信息和权限' },
-  { id: 'role_delete', name: '删除角色', code: 'role:delete', category: '角色管理', description: '删除角色' },
-  { id: 'agent_view', name: '查看智能体', code: 'agent:view', category: '智能体管理', description: '查看智能体列表和配置' },
-  { id: 'agent_create', name: '创建智能体', code: 'agent:create', category: '智能体管理', description: '创建新智能体' },
-  { id: 'agent_edit', name: '编辑智能体', code: 'agent:edit', category: '智能体管理', description: '修改智能体配置' },
-  { id: 'agent_delete', name: '删除智能体', code: 'agent:delete', category: '智能体管理', description: '删除智能体' },
-  { id: 'model_view', name: '查看模型', code: 'model:view', category: '模型配置', description: '查看模型配置' },
-  { id: 'model_edit', name: '编辑模型', code: 'model:edit', category: '模型配置', description: '修改模型配置' },
-  { id: 'report_view', name: '查看报表', code: 'report:view', category: '报表管理', description: '查看营销报表' },
-  { id: 'report_export', name: '导出报表', code: 'report:export', category: '报表管理', description: '导出营销报表' },
-];
-
-const defaultRoles: Role[] = [
-  { id: 'admin', name: '管理员', permissions: defaultPermissions.map(p => p.id), description: '拥有全部系统权限', isSystem: true },
-  { id: 'manager', name: '业务经理', permissions: defaultPermissions.filter(p => !['user_delete', 'role_delete', 'agent_delete'].includes(p.id)).map(p => p.id), description: '业务管理权限，不含删除权限', isSystem: true },
-  { id: 'operator', name: '运营人员', permissions: defaultPermissions.filter(p => p.category === '报表管理' || p.code.includes('view')).map(p => p.id), description: '基础运营权限', isSystem: false },
-];
-
 export function SettingsPage() {
   const { language } = useAppStore();
   const queryClient = useQueryClient();
-  const [roles, setRoles] = useState<Role[]>(defaultRoles);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
@@ -76,6 +50,16 @@ export function SettingsPage() {
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => getUsers(),
+  });
+
+  const { data: rolesData, isLoading: rolesLoading } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => getRoles(),
+  });
+
+  const { data: permissionsData, isLoading: permissionsLoading } = useQuery({
+    queryKey: ['permissions'],
+    queryFn: () => getPermissions(),
   });
 
   const createModelMutation = useMutation({
@@ -137,9 +121,31 @@ export function SettingsPage() {
     onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '删除用户失败' : 'Failed to delete user')),
   });
 
+  const createRoleMutation = useMutation({
+    mutationFn: createRole,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['roles'] }); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '创建角色失败' : 'Failed to create role')),
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateRole(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['roles'] }); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '更新角色失败' : 'Failed to update role')),
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: deleteRole,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['roles'] }); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '删除角色失败' : 'Failed to delete role')),
+  });
+
   const models = modelsData?.data || [];
   const integrations = (integrationsData?.data || []) as Integration[];
   const users = usersData?.data || [];
+  const roles = rolesData?.data || [];
+  const permissions = permissionsData?.data || [];
+
+  const isRoleMutating = createRoleMutation.isPending || updateRoleMutation.isPending || deleteRoleMutation.isPending;
 
   const t = language === 'zh' ? {
     modelConfig: '模型配置',
@@ -440,8 +446,12 @@ export function SettingsPage() {
         <TabsContent value="permission">
           <PermissionManager
             roles={roles}
-            permissions={defaultPermissions}
-            onRolesChange={setRoles}
+            permissions={permissions}
+            isLoading={rolesLoading || permissionsLoading}
+            isMutating={isRoleMutating}
+            onCreateRole={(data) => createRoleMutation.mutate(data)}
+            onUpdateRole={(id, data) => updateRoleMutation.mutate({ id, data })}
+            onDeleteRole={(id) => deleteRoleMutation.mutate(id)}
           />
         </TabsContent>
       </Tabs>

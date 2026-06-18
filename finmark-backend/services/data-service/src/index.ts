@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import type { Application } from 'express';
 import cors from 'cors';
-import { authRouter, scenarioRouter, atomRouter, userRouter, performanceRouter, settingsRouter, strategyRouter, complianceRouter, auditRouter, abTestRouter, taskScheduleRouter, maskingRouter, monitoringRouter, agentConfigRouter } from './routes/index.js';
+import { authRouter, scenarioRouter, atomRouter, userRouter, performanceRouter, settingsRouter, strategyRouter, complianceRouter, auditRouter, abTestRouter, taskScheduleRouter, maskingRouter, monitoringRouter, agentConfigRouter, permissionRouter } from './routes/index.js';
 import { agentProxyRouter } from './routes/agentProxy.js';
 import { alarmRouter } from './routes/alarms.js';
 import { reportRouter } from './routes/reports.js';
@@ -11,6 +11,7 @@ import { crmRouter } from './routes/crm.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { checkDatabaseHealth } from './config/database.js';
 import { initAlarmQueue, alarmQueue } from './queues/alarmQueue.js';
+import { seedDefaultPermissions, seedDefaultRoles } from './services/permissionService.js';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -57,6 +58,7 @@ app.use('/api/ab-tests', abTestRouter);
 app.use('/api/task-schedules', taskScheduleRouter);
 app.use('/api/masking', maskingRouter);
 app.use('/api/monitoring', monitoringRouter);
+app.use('/api/permissions', permissionRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -64,7 +66,15 @@ app.use(errorHandler);
 app.listen(PORT, async () => {
   console.log(`Data Service running on http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
-  
+
+  try {
+    await seedDefaultPermissions();
+    await seedDefaultRoles();
+    console.log('Default permissions and roles seeded');
+  } catch (err) {
+    console.error('Failed to seed permissions/roles:', err);
+  }
+
   try {
     await initAlarmQueue();
     console.log('Alarm queue initialized');

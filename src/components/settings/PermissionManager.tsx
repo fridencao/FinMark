@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Shield, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Edit2, Trash2, Save, X, Shield, Users, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,11 @@ import { EmptyState } from '@/components/common/EmptyState';
 interface PermissionManagerProps {
   roles: Role[];
   permissions: Permission[];
-  onRolesChange: (roles: Role[]) => void;
+  isLoading?: boolean;
+  onCreateRole: (data: { name: string; description?: string; isSystem?: boolean; permissions?: string[] }) => void;
+  onUpdateRole: (id: string, data: { name?: string; description?: string; permissions?: string[] }) => void;
+  onDeleteRole: (id: string) => void;
+  isMutating?: boolean;
 }
 
 interface FormData {
@@ -36,14 +40,21 @@ const initialFormData: FormData = {
   permissions: [],
 };
 
-export function PermissionManager({ roles, permissions, onRolesChange }: PermissionManagerProps) {
+export function PermissionManager({
+  roles,
+  permissions,
+  isLoading = false,
+  onCreateRole,
+  onUpdateRole,
+  onDeleteRole,
+  isMutating = false,
+}: PermissionManagerProps) {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter permissions based on search
   const filteredPermissions = permissions.filter(
     (p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,8 +87,7 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
 
   const handleDeleteRole = () => {
     if (selectedRole && !selectedRole.isSystem) {
-      const newRoles = roles.filter((r) => r.id !== selectedRole.id);
-      onRolesChange(newRoles);
+      onDeleteRole(selectedRole.id);
       setSelectedRole(null);
     }
   };
@@ -86,29 +96,19 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
     if (!formData.name.trim()) return;
 
     if (isEditing && selectedRole) {
-      // Update existing role
-      const updatedRole: Role = {
-        ...selectedRole,
+      onUpdateRole(selectedRole.id, {
         name: formData.name,
         description: formData.description,
-        isSystem: formData.isSystem,
         permissions: formData.permissions,
-      };
-      const newRoles = roles.map((r) => (r.id === selectedRole.id ? updatedRole : r));
-      onRolesChange(newRoles);
-      setSelectedRole(updatedRole);
+      });
+      setSelectedRole({ ...selectedRole, ...formData });
     } else {
-      // Create new role
-      const newRole: Role = {
-        id: `role_${Date.now()}`,
+      onCreateRole({
         name: formData.name,
         description: formData.description,
         isSystem: formData.isSystem,
         permissions: formData.permissions,
-      };
-      const newRoles = [...roles, newRole];
-      onRolesChange(newRoles);
-      setSelectedRole(newRole);
+      });
     }
 
     setIsDialogOpen(false);
@@ -122,20 +122,33 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
     setIsEditing(false);
   };
 
+  const handlePermissionChange = (permissionIds: string[]) => {
+    if (!selectedRole) return;
+    onUpdateRole(selectedRole.id, { permissions: permissionIds });
+    setSelectedRole({ ...selectedRole, permissions: permissionIds });
+  };
+
   const getRolePermissionCount = (role: Role) => {
     return role.permissions.length;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[600px]">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-6 h-[600px]">
-      {/* Left Panel - Role List */}
       <div className="w-80 border border-slate-200 rounded-lg flex flex-col">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700 flex items-center gap-2">
             <Users className="w-4 h-4" />
             角色列表
           </h3>
-          <Button size="sm" onClick={handleCreateRole}>
+          <Button size="sm" onClick={handleCreateRole} disabled={isMutating}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>
@@ -180,7 +193,6 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
         </div>
       </div>
 
-      {/* Right Panel - Permission Configuration */}
       <div className="flex-1 border border-slate-200 rounded-lg flex flex-col">
         {selectedRole ? (
           <>
@@ -202,10 +214,10 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
               <div className="flex items-center gap-2">
                 {!selectedRole.isSystem && (
                   <>
-                    <Button size="sm" variant="outline" onClick={handleEditRole}>
+                    <Button size="sm" variant="outline" onClick={handleEditRole} disabled={isMutating}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleDeleteRole}>
+                    <Button size="sm" variant="outline" onClick={handleDeleteRole} disabled={isMutating}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </>
@@ -219,7 +231,8 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
                   权限配置
                 </Label>
                 <p className="text-xs text-slate-500 mb-4">
-                  为角色分配权限，选中类别将分配该类别下的所有权限
+                  为角色分配权限，选中类别将分配该类别下的所有权限。
+                  {isMutating && <span className="ml-1 text-indigo-500">保存中...</span>}
                 </p>
 
                 <div className="mb-4">
@@ -235,15 +248,8 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
                 <PermissionTree
                   permissions={filteredPermissions}
                   selectedPermissionIds={selectedRole.permissions}
-                  onSelectionChange={(permissionIds) => {
-                    const updatedRole = { ...selectedRole, permissions: permissionIds };
-                    setSelectedRole(updatedRole);
-                    const newRoles = roles.map((r) =>
-                      r.id === selectedRole.id ? updatedRole : r
-                    );
-                    onRolesChange(newRoles);
-                  }}
-                  disabled={isEditing === false && !selectedRole.isSystem}
+                  onSelectionChange={handlePermissionChange}
+                  disabled={selectedRole.isSystem || isMutating}
                 />
               </div>
             </div>
@@ -259,7 +265,6 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
         )}
       </div>
 
-      {/* Create/Edit Role Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -276,6 +281,7 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="例如：高级管理员"
+                disabled={isEditing && selectedRole?.isSystem}
               />
             </div>
 
@@ -286,6 +292,7 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="例如：拥有全部系统管理权限"
+                disabled={isEditing && selectedRole?.isSystem}
               />
             </div>
 
@@ -295,6 +302,7 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
                 id="isSystem"
                 checked={formData.isSystem}
                 onCheckedChange={(checked) => setFormData({ ...formData, isSystem: checked })}
+                disabled={isEditing && selectedRole?.isSystem}
               />
             </div>
 
@@ -308,6 +316,7 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
                     onSelectionChange={(permissionIds) =>
                       setFormData({ ...formData, permissions: permissionIds })
                     }
+                    disabled={isMutating}
                   />
                 </div>
               </div>
@@ -315,12 +324,12 @@ export function PermissionManager({ roles, permissions, onRolesChange }: Permiss
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancel}>
+            <Button variant="outline" onClick={handleCancel} disabled={isMutating}>
               <X className="w-4 h-4" />
               取消
             </Button>
-            <Button onClick={handleSaveRole}>
-              <Save className="w-4 h-4" />
+            <Button onClick={handleSaveRole} disabled={isMutating || !formData.name.trim()}>
+              {isMutating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
               保存
             </Button>
           </DialogFooter>

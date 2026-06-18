@@ -12,3 +12,4 @@ export { maskingRouter } from './masking.js';
 export { abTestRouter } from './abTest.js';
 export { monitoringRouter } from './monitoring.js';
 export { agentConfigRouter } from './agentConfigs.js';
+export { permissionRouter } from './permissions.js';

@@ -373,6 +373,29 @@ model ModelCallLog {
   @@map("model_call_logs")
 }
 
+model Permission {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  category    String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("permissions")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
 model AgentConfig {
   id         String   @id @default(uuid())
   agentType  String   @unique
