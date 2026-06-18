@@ -28,7 +28,7 @@ expertRouter.get('/workflows/:id', param('id').isUUID(), async (req, res, next) 
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
-    const workflow = await workflowService.getWorkflowById(req.params.id);
+    const workflow = await workflowService.getWorkflowById(req.params!.id);
     if (!workflow) return next(new NotFoundError('Workflow'));
     res.json({ success: true, data: workflow });
   } catch (err) {
@@ -61,7 +61,7 @@ expertRouter.put('/workflows/:id', param('id').isUUID(), async (req, res, next) 
     const errors = validationResult(req);
     if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
     const { name, description, nodes, edges, enabled, status } = req.body as any;
-    const workflow = await workflowService.updateWorkflow(req.params.id, { name, description, nodes, edges, enabled, status });
+    const workflow = await workflowService.updateWorkflow(req.params!.id, { name, description, nodes, edges, enabled, status });
     res.json({ success: true, data: workflow });
   } catch (err) {
     next(err);
@@ -70,7 +70,7 @@ expertRouter.put('/workflows/:id', param('id').isUUID(), async (req, res, next) 
 
 expertRouter.delete('/workflows/:id', param('id').isUUID(), async (req, res, next) => {
   try {
-    await workflowService.deleteWorkflow(req.params.id);
+    await workflowService.deleteWorkflow(req.params!.id);
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -79,7 +79,7 @@ expertRouter.delete('/workflows/:id', param('id').isUUID(), async (req, res, nex
 
 expertRouter.post('/workflows/:id/execute', param('id').isUUID(), async (req, res, next) => {
   try {
-    const execution = await workflowService.executeWorkflow(req.params.id);
+    const execution = await workflowService.executeWorkflow(req.params!.id);
     res.status(201).json({ success: true, data: execution });
   } catch (err) {
     next(err);
@@ -109,7 +109,7 @@ expertRouter.get('/templates', async (req, res, next) => {
 
 expertRouter.get('/templates/:id', param('id').isUUID(), async (req, res, next) => {
   try {
-    const template = await templateService.getTemplateById(req.params.id);
+    const template = await templateService.getTemplateById(req.params!.id);
     if (!template) return next(new NotFoundError('Template'));
     res.json({ success: true, data: template });
   } catch (err) {
@@ -135,7 +135,7 @@ expertRouter.post('/templates',
 
 expertRouter.put('/templates/:id', param('id').isUUID(), async (req, res, next) => {
   try {
-    const template = await templateService.updateTemplate(req.params.id, req.body as any);
+    const template = await templateService.updateTemplate(req.params!.id, req.body as any);
     res.json({ success: true, data: template });
   } catch (err) {
     next(err);
@@ -144,7 +144,7 @@ expertRouter.put('/templates/:id', param('id').isUUID(), async (req, res, next) 
 
 expertRouter.delete('/templates/:id', param('id').isUUID(), async (req, res, next) => {
   try {
-    await templateService.deleteTemplate(req.params.id);
+    await templateService.deleteTemplate(req.params!.id);
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -154,7 +154,7 @@ expertRouter.delete('/templates/:id', param('id').isUUID(), async (req, res, nex
 expertRouter.post('/templates/:id/render', param('id').isUUID(), async (req, res, next) => {
   try {
     const { variables } = req.body as { variables: Record<string, string> };
-    const result = await templateService.renderTemplate(req.params.id, variables);
+    const result = await templateService.renderTemplate(req.params!.id, variables);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -164,7 +164,7 @@ expertRouter.post('/templates/:id/render', param('id').isUUID(), async (req, res
 expertRouter.post('/templates/:id/duplicate', param('id').isUUID(), async (req, res, next) => {
   try {
     const { newName } = req.body as { newName: string };
-    const template = await templateService.duplicateTemplate(req.params.id, newName);
+    const template = await templateService.duplicateTemplate(req.params!.id, newName);
     res.status(201).json({ success: true, data: template });
   } catch (err) {
     next(err);
@@ -199,7 +199,7 @@ expertRouter.post('/batch',
 
 expertRouter.post('/batch/:id/execute', param('id').isUUID(), async (req, res, next) => {
   try {
-    const result = await batchStrategyService.executeBatchStrategy(req.params.id);
+    const result = await batchStrategyService.executeBatchStrategy(req.params!.id);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -208,7 +208,7 @@ expertRouter.post('/batch/:id/execute', param('id').isUUID(), async (req, res, n
 
 expertRouter.get('/batch/:id', param('id').isUUID(), async (req, res, next) => {
   try {
-    const batch = await batchStrategyService.getBatchStatus(req.params.id);
+    const batch = await batchStrategyService.getBatchStatus(req.params!.id);
     if (!batch) return next(new NotFoundError('BatchStrategy'));
     res.json({ success: true, data: batch });
   } catch (err) {
@@ -218,7 +218,7 @@ expertRouter.get('/batch/:id', param('id').isUUID(), async (req, res, next) => {
 
 expertRouter.post('/batch/:id/cancel', param('id').isUUID(), async (req, res, next) => {
   try {
-    const batch = await batchStrategyService.cancelBatchStrategy(req.params.id);
+    const batch = await batchStrategyService.cancelBatchStrategy(req.params!.id);
     res.json({ success: true, data: batch });
   } catch (err) {
     next(err);

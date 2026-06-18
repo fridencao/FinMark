@@ -20,7 +20,7 @@ crmRouter.get('/customers/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
 
-      const customer = await crmService.getCustomer(req.params.id);
+      const customer = await crmService.getCustomer(req.params!.id);
       res.json({ success: true, data: customer });
     } catch (err) {
       next(err);
@@ -35,7 +35,7 @@ crmRouter.get('/customers/:id/accounts',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
 
-      const accounts = await crmService.getCustomerAccounts(req.params.id);
+      const accounts = await crmService.getCustomerAccounts(req.params!.id);
       res.json({ success: true, data: accounts });
     } catch (err) {
       next(err);
@@ -53,10 +53,10 @@ crmRouter.get('/customers/:id/transactions',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
 
-      const transactions = await crmService.getCustomerTransactions(req.params.id, {
-        startDate: req.query.startDate as string,
-        endDate: req.query.endDate as string,
-        limit: req.query.limit as number,
+      const transactions = await crmService.getCustomerTransactions(req.params!.id, {
+        startDate: req.query!.startDate as string,
+        endDate: req.query!.endDate as string,
+        limit: req.query!.limit as number,
       });
       res.json({ success: true, data: transactions });
     } catch (err) {
@@ -76,10 +76,10 @@ crmRouter.get('/customers/search',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
 
       const customers = await crmService.searchCustomers({
-        name: req.query.name as string,
-        phone: req.query.phone as string,
-        idNumber: req.query.idNumber as string,
-        accountNumber: req.query.accountNumber as string,
+        name: req.query!.name as string,
+        phone: req.query!.phone as string,
+        idNumber: req.query!.idNumber as string,
+        accountNumber: req.query!.accountNumber as string,
       });
       res.json({ success: true, data: customers });
     } catch (err) {
@@ -95,7 +95,7 @@ crmRouter.post('/customers/sync',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
 
-      const lastSyncDate = req.query.since ? new Date(req.query.since as string) : undefined;
+      const lastSyncDate = req.query!.since ? new Date(req.query!.since as string) : undefined;
       const result = await crmService.syncCustomers(lastSyncDate);
       
       const authReq = req as AuthRequest;
@@ -141,8 +141,8 @@ crmRouter.get('/tags/:customerId',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
 
-      const tags = await crmIntegration.getCustomerTags(req.params.customerId);
-      res.json({ success: true, data: { customerId: req.params.customerId, tags } });
+      const tags = await crmIntegration.getCustomerTags(req.params!.customerId);
+      res.json({ success: true, data: { customerId: req.params!.customerId, tags } });
     } catch (err) {
       next(err);
     }

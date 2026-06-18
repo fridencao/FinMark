@@ -60,7 +60,7 @@ complianceRouter.get('/forbidden-words/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const word = await prisma.forbiddenWord.findUnique({ where: { id: req.params.id } });
+      const word = await prisma.forbiddenWord.findUnique({ where: { id: req.params!.id } });
       if (!word) throw new NotFoundError('Forbidden word not found');
 
       res.json({ success: true, data: word });
@@ -80,7 +80,7 @@ complianceRouter.post('/forbidden-words',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { word, category, severity, replacement, enabled = true } = req.body;
-      const userId = (req as AuthRequest).user?.id;
+      const userId = (req as AuthRequest).user?.userId;
 
       const created = await prisma.forbiddenWord.create({
         data: {
@@ -110,11 +110,11 @@ complianceRouter.put('/forbidden-words/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const existing = await prisma.forbiddenWord.findUnique({ where: { id: req.params.id } });
+      const existing = await prisma.forbiddenWord.findUnique({ where: { id: req.params!.id } });
       if (!existing) throw new NotFoundError('Forbidden word not found');
 
       const updated = await prisma.forbiddenWord.update({
-        where: { id: req.params.id },
+        where: { id: req.params!.id },
         data: req.body,
       });
 
@@ -130,10 +130,10 @@ complianceRouter.delete('/forbidden-words/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const existing = await prisma.forbiddenWord.findUnique({ where: { id: req.params.id } });
+      const existing = await prisma.forbiddenWord.findUnique({ where: { id: req.params!.id } });
       if (!existing) throw new NotFoundError('Forbidden word not found');
 
-      await prisma.forbiddenWord.delete({ where: { id: req.params.id } });
+      await prisma.forbiddenWord.delete({ where: { id: req.params!.id } });
       res.json({ success: true, message: 'Deleted successfully' });
     } catch (err) { next(err); }
   }
@@ -187,7 +187,7 @@ complianceRouter.get('/rules/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const rule = await prisma.complianceRule.findUnique({ where: { id: req.params.id } });
+      const rule = await prisma.complianceRule.findUnique({ where: { id: req.params!.id } });
       if (!rule) throw new NotFoundError('Compliance rule not found');
 
       res.json({ success: true, data: rule });
@@ -207,7 +207,7 @@ complianceRouter.post('/rules',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { name, description, type, config, enabled = true } = req.body;
-      const userId = (req as AuthRequest).user?.id;
+      const userId = (req as AuthRequest).user?.userId;
 
       const created = await prisma.complianceRule.create({
         data: {
@@ -237,11 +237,11 @@ complianceRouter.put('/rules/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const existing = await prisma.complianceRule.findUnique({ where: { id: req.params.id } });
+      const existing = await prisma.complianceRule.findUnique({ where: { id: req.params!.id } });
       if (!existing) throw new NotFoundError('Compliance rule not found');
 
       const updated = await prisma.complianceRule.update({
-        where: { id: req.params.id },
+        where: { id: req.params!.id },
         data: req.body,
       });
 
@@ -257,10 +257,10 @@ complianceRouter.delete('/rules/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const existing = await prisma.complianceRule.findUnique({ where: { id: req.params.id } });
+      const existing = await prisma.complianceRule.findUnique({ where: { id: req.params!.id } });
       if (!existing) throw new NotFoundError('Compliance rule not found');
 
-      await prisma.complianceRule.delete({ where: { id: req.params.id } });
+      await prisma.complianceRule.delete({ where: { id: req.params!.id } });
       res.json({ success: true, message: 'Deleted successfully' });
     } catch (err) { next(err); }
   }
@@ -278,7 +278,7 @@ complianceRouter.post('/check',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { content, customerRiskLevel, productRiskLevel } = req.body;
-      const userId = (req as AuthRequest).user?.id;
+      const userId = (req as AuthRequest).user?.userId;
 
       // Load forbidden words from DB
       const forbiddenWords = await prisma.forbiddenWord.findMany({ where: { enabled: true } });

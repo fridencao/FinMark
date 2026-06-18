@@ -40,7 +40,7 @@ alarmRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const rule = await alarmService.getRuleById(req.params.id);
+      const rule = await alarmService.getRuleById(req.params!.id);
       if (!rule) return next(new NotFoundError('AlarmRule'));
 
       res.json({ success: true, data: rule });
@@ -103,7 +103,7 @@ alarmRouter.put(
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const b = req.body as any;
-      const rule = await alarmService.updateRule(req.params.id, b);
+      const rule = await alarmService.updateRule(req.params!.id, b);
 
       const authReq = req as AuthRequest;
       const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
@@ -126,11 +126,11 @@ alarmRouter.delete(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      await alarmService.deleteRule(req.params.id);
+      await alarmService.deleteRule(req.params!.id);
 
       const authReq = req as AuthRequest;
       const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
-      await createAuditLog(authReq.user?.userId, 'DELETE', 'alarmRule', { ruleId: req.params.id }, ip);
+      await createAuditLog(authReq.user?.userId, 'DELETE', 'alarmRule', { ruleId: req.params!.id }, ip);
 
       res.json({ success: true });
     } catch (err) {
@@ -150,7 +150,7 @@ alarmRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const rule = await alarmService.toggleRule(req.params.id, req.body.enabled);
+      const rule = await alarmService.toggleRule(req.params!.id, req.body.enabled);
       res.json({ success: true, data: rule });
     } catch (err) {
       next(err);
@@ -170,8 +170,8 @@ alarmRouter.get(
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const history = await alarmService.getHistory(
-        req.query.ruleId as string | undefined,
-        req.query.status as string | undefined
+        req.query!.ruleId as string | undefined,
+        req.query!.status as string | undefined
       );
       res.json({ success: true, data: history });
     } catch (err) {
@@ -190,7 +190,7 @@ alarmRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const alarm = await alarmService.acknowledgeAlarm(req.params.id);
+      const alarm = await alarmService.acknowledgeAlarm(req.params!.id);
       res.json({ success: true, data: alarm });
     } catch (err) {
       next(err);
@@ -208,7 +208,7 @@ alarmRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const alarm = await alarmService.resolveAlarm(req.params.id);
+      const alarm = await alarmService.resolveAlarm(req.params!.id);
       res.json({ success: true, data: alarm });
     } catch (err) {
       next(err);
@@ -226,7 +226,7 @@ alarmRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const alarm = await alarmWorkflowService.acknowledgeAlarm(req.params.id);
+      const alarm = await alarmWorkflowService.acknowledgeAlarm(req.params!.id);
       res.json({ success: true, data: alarm });
     } catch (err) {
       next(err);
@@ -244,7 +244,7 @@ alarmRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const alarm = await alarmWorkflowService.startProcessing(req.params.id);
+      const alarm = await alarmWorkflowService.startProcessing(req.params!.id);
       res.json({ success: true, data: alarm });
     } catch (err) {
       next(err);
@@ -262,7 +262,7 @@ alarmRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const alarm = await alarmWorkflowService.resolveAlarm(req.params.id);
+      const alarm = await alarmWorkflowService.resolveAlarm(req.params!.id);
       res.json({ success: true, data: alarm });
     } catch (err) {
       next(err);
@@ -283,7 +283,7 @@ alarmRouter.post(
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { author, content } = req.body;
-      const alarm = await alarmWorkflowService.addComment(req.params.id, author, content);
+      const alarm = await alarmWorkflowService.addComment(req.params!.id, author, content);
       res.json({ success: true, data: alarm });
     } catch (err) {
       next(err);
@@ -301,7 +301,7 @@ alarmRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const alarm = await alarmWorkflowService.getAlarmDetails(req.params.id);
+      const alarm = await alarmWorkflowService.getAlarmDetails(req.params!.id);
       if (!alarm) return next(new NotFoundError('Alarm'));
       res.json({ success: true, data: alarm });
     } catch (err) {
@@ -321,8 +321,8 @@ alarmRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const startDate = req.query!.startDate ? new Date(req.query!.startDate as string) : undefined;
+      const endDate = req.query!.endDate ? new Date(req.query!.endDate as string) : undefined;
 
       const stats = await alarmWorkflowService.getAlarmStats(startDate, endDate);
       res.json({ success: true, data: stats });

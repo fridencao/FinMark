@@ -94,7 +94,7 @@ export const auditService = {
         by: ['action'],
         where,
         _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        orderBy: { _count: { _all: 'desc' as const } as unknown as Prisma.AuditLogCountOrderByAggregateInput },
       }),
     ]);
 
@@ -102,7 +102,7 @@ export const auditService = {
       total,
       byAction: byAction.map((item) => ({
         action: item.action,
-        count: item._count._all,
+        count: (item._count as { _all: number })._all,
       })),
     };
   },

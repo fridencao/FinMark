@@ -67,7 +67,7 @@ abTestRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const test = await abTestService.getTestById(req.params.id);
+      const test = await abTestService.getTestById(req.params!.id);
       if (!test) return next(new NotFoundError('AbTest'));
 
       res.json({ success: true, data: test });
@@ -86,7 +86,7 @@ abTestRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const test = await abTestService.startTest(req.params.id);
+      const test = await abTestService.startTest(req.params!.id);
 
       const authReq = req as AuthRequest;
       const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
@@ -108,7 +108,7 @@ abTestRouter.post(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const test = await abTestService.stopTest(req.params.id);
+      const test = await abTestService.stopTest(req.params!.id);
 
       const authReq = req as AuthRequest;
       const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
@@ -132,7 +132,7 @@ abTestRouter.post(
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const b = req.body as { branchId: string };
-      const test = await abTestService.recordConversion(req.params.id, b.branchId);
+      const test = await abTestService.recordConversion(req.params!.id, b.branchId);
 
       res.json({ success: true, data: test });
     } catch (err) {
@@ -150,7 +150,7 @@ abTestRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const results = await abTestService.getResults(req.params.id);
+      const results = await abTestService.getResults(req.params!.id);
 
       res.json({ success: true, data: results });
     } catch (err) {

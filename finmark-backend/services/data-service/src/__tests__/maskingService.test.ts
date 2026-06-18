@@ -227,32 +227,32 @@ describe('maskingService', () => {
     it('should mask phone field', () => {
       const obj = { name: '张三', phone: '13812341234' };
       const result = maskObject(obj);
-      expect(result.phone).toBe('138****1234');
-      expect(result.name).toBe('张*');
+      expect(result!.phone).toBe('138****1234');
+      expect(result!.name).toBe('张*');
     });
 
     it('should mask idCard field', () => {
       const obj = { idCard: '110101199001011234' };
       const result = maskObject(obj);
-      expect(result.idCard).toBe('110***********1234');
+      expect(result!.idCard).toBe('110***********1234');
     });
 
     it('should mask email field', () => {
       const obj = { email: 'test@example.com' };
       const result = maskObject(obj);
-      expect(result.email).toBe('t***@example.com');
+      expect(result!.email).toBe('t***@example.com');
     });
 
     it('should mask bankCard field', () => {
       const obj = { bankCard: '6222021234561234' };
       const result = maskObject(obj);
-      expect(result.bankCard).toBe('6222 **** **** 1234');
+      expect(result!.bankCard).toBe('6222 **** **** 1234');
     });
 
     it('should mask aum field', () => {
       const obj = { aum: 5000000 };
       const result = maskObject(obj);
-      expect(result.aum).toBe('>100万');
+      expect(result!.aum).toBe('>100万');
     });
 
     it('should not mask non-sensitive fields', () => {
@@ -276,7 +276,7 @@ describe('maskingService', () => {
     it('should use custom field mappings', () => {
       const obj = { mobile: '13812341234' };
       const result = maskObject(obj, { mobile: 'phone' });
-      expect(result.mobile).toBe('138****1234');
+      expect(result!.mobile).toBe('138****1234');
     });
   });
 
@@ -287,10 +287,10 @@ describe('maskingService', () => {
         { name: '李四', phone: '13912345678' },
       ];
       const result = maskArray(arr);
-      expect(result[0].phone).toBe('138****1234');
-      expect(result[1].phone).toBe('139****5678');
-      expect(result[0].name).toBe('张*');
-      expect(result[1].name).toBe('李*');
+      expect(result![0].phone).toBe('138****1234');
+      expect(result![1].phone).toBe('139****5678');
+      expect(result![0].name).toBe('张*');
+      expect(result![1].name).toBe('李*');
     });
 
     it('should handle empty array', () => {
@@ -326,7 +326,7 @@ describe('maskingService', () => {
       });
       const obj = { plate: '京A12345' };
       const result = maskObject(obj);
-      expect(result.plate).toBe('京A***5');
+      expect(result!.plate).toBe('京A***5');
     });
   });
 

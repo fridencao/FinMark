@@ -165,7 +165,7 @@ export function maskArray<T extends Record<string, any>>(
   if (isNil(arr)) return arr;
   return arr.map((item) => {
     if (item !== null && item !== undefined && typeof item === 'object') {
-      return maskObject(item, fieldMappings);
+      return maskObject(item, fieldMappings)!;
     }
     return item;
   });

@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { crmConfig } from '../config/crm.js';
 import { prisma } from '../config/database.js';
 
@@ -26,8 +26,8 @@ class CRMService {
     });
 
     this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
+      (response: AxiosResponse) => response,
+      async (error: { config?: InternalAxiosRequestConfig }) => {
         const config = error.config as CRMRetryConfig;
         if (!config || !config.retryCount) {
           return Promise.reject(error);

@@ -58,7 +58,7 @@ taskScheduleRouter.get('/:id',
 
       const { prisma } = await import('../config/database.js');
       const schedule = await prisma.taskSchedule.findUnique({
-        where: { id: req.params.id },
+        where: { id: req.params!.id },
         include: { executions: { orderBy: { startedAt: 'desc' }, take: 10 } },
       });
       if (!schedule) return next(new NotFoundError('TaskSchedule'));
@@ -105,7 +105,7 @@ taskScheduleRouter.put('/:id',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const b = req.body as Record<string, unknown>;
-      const schedule = await taskScheduleService.updateSchedule(req.params.id, {
+      const schedule = await taskScheduleService.updateSchedule(req.params!.id, {
         name: b.name as string | undefined,
         scenarioId: b.scenarioId as string | undefined,
         triggerType: b.triggerType as string | undefined,
@@ -129,10 +129,10 @@ taskScheduleRouter.delete('/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      await taskScheduleService.deleteSchedule(req.params.id);
+      await taskScheduleService.deleteSchedule(req.params!.id);
       const authReq = req as AuthRequest;
       const ip = typeof req.ip === 'string' ? req.ip : undefined;
-      await createAuditLog(authReq.user?.userId, 'DELETE', 'taskSchedule', { scheduleId: req.params.id }, ip);
+      await createAuditLog(authReq.user?.userId, 'DELETE', 'taskSchedule', { scheduleId: req.params!.id }, ip);
       res.json({ success: true });
     } catch (err) { next(err); }
   }
@@ -145,7 +145,7 @@ taskScheduleRouter.post('/:id/pause',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const schedule = await taskScheduleService.pauseSchedule(req.params.id);
+      const schedule = await taskScheduleService.pauseSchedule(req.params!.id);
       res.json({ success: true, data: schedule });
     } catch (err) { next(err); }
   }
@@ -158,7 +158,7 @@ taskScheduleRouter.post('/:id/resume',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const schedule = await taskScheduleService.resumeSchedule(req.params.id);
+      const schedule = await taskScheduleService.resumeSchedule(req.params!.id);
       res.json({ success: true, data: schedule });
     } catch (err) { next(err); }
   }
@@ -175,7 +175,7 @@ taskScheduleRouter.get('/:id/history',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { page, limit, status } = req.query as Record<string, unknown>;
-      const result = await taskScheduleService.getScheduleHistory(req.params.id, {
+      const result = await taskScheduleService.getScheduleHistory(req.params!.id, {
         page: page as number | undefined,
         limit: limit as number | undefined,
         status: status as string | undefined,

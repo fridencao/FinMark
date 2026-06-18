@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import type { SearchEntry } from 'ldapjs';
 
 const {
   mockBind,
@@ -244,7 +245,7 @@ describe('LdapService', () => {
         memberOf: 'cn=users,dc=company,dc=com',
       });
 
-      const result = mapLdapUser(entry);
+      const result = mapLdapUser(entry as unknown as SearchEntry);
 
       expect(result).toEqual({
         username: 'jdoe',
@@ -259,7 +260,7 @@ describe('LdapService', () => {
         uid: 'minimal',
       });
 
-      const result = mapLdapUser(entry);
+      const result = mapLdapUser(entry as unknown as SearchEntry);
 
       expect(result.username).toBe('minimal');
       expect(result.email).toBe('');
@@ -279,7 +280,7 @@ describe('LdapService', () => {
         ],
       };
 
-      const result = mapLdapUser(entry);
+      const result = mapLdapUser(entry as unknown as SearchEntry);
 
       expect(result.groups).toEqual(['cn=group1,dc=test', 'cn=group2,dc=test']);
     });

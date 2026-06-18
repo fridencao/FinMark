@@ -76,7 +76,7 @@ reportRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const reportId = req.params.id!;
+      const reportId = req.params!.id;
       const report = await prisma.report.findUnique({
         where: { id: reportId },
       });
@@ -167,7 +167,7 @@ reportRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const reportId = req.params.id!;
+      const reportId = req.params!.id;
       const report = await prisma.report.findUnique({
         where: { id: reportId },
       });
@@ -195,7 +195,7 @@ reportRouter.delete(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const reportId = req.params.id!;
+      const reportId = req.params!.id;
       await prisma.report.delete({
         where: { id: reportId },
       });

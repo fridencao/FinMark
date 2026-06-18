@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js';
+import type { Prisma } from '@prisma/client';
 
 export interface CreateScheduleInput {
   name: string;
@@ -29,7 +30,7 @@ export async function createSchedule(input: CreateScheduleInput) {
       name: input.name,
       scenarioId: input.scenarioId,
       triggerType: input.triggerType,
-      triggerConfig: input.triggerConfig as unknown,
+      triggerConfig: input.triggerConfig as Prisma.InputJsonValue,
       targetSegment: input.targetSegment,
       channels: input.channels,
       status: 'active',

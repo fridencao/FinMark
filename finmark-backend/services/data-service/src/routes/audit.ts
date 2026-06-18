@@ -49,7 +49,7 @@ auditRouter.get('/user/:userId',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { page, limit } = req.query as Record<string, unknown>;
-      const result = await auditService.getByUser(req.params.userId, {
+      const result = await auditService.getByUser(req.params!.userId, {
         page: page as number | undefined,
         limit: limit as number | undefined,
       });
@@ -69,7 +69,7 @@ auditRouter.get('/resource/:resource',
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
       const { page, limit } = req.query as Record<string, unknown>;
-      const result = await auditService.getByResource(req.params.resource, {
+      const result = await auditService.getByResource(req.params!.resource, {
         page: page as number | undefined,
         limit: limit as number | undefined,
       });

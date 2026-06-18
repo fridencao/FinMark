@@ -19,7 +19,7 @@ agentConfigRouter.get('/configs/:agentType', param('agentType').isString(), asyn
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
-    const config = await agentConfigService.getConfigByType(req.params.agentType);
+    const config = await agentConfigService.getConfigByType(req.params!.agentType);
     if (!config) return res.status(404).json({ success: false, error: 'Agent type not found' });
     res.json({ success: true, data: config });
   } catch (err) { next(err); }
@@ -38,7 +38,7 @@ agentConfigRouter.put('/configs/:agentType',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
-      const config = await agentConfigService.updateConfig(req.params.agentType, req.body);
+      const config = await agentConfigService.updateConfig(String(req.params!.agentType), req.body);
       res.json({ success: true, data: config });
     } catch (err) { next(err); }
   }
@@ -51,7 +51,7 @@ agentConfigRouter.post('/configs/:agentType/toggle',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
-      const config = await agentConfigService.toggleConfig(req.params.agentType);
+      const config = await agentConfigService.toggleConfig(String(req.params!.agentType));
       res.json({ success: true, data: config });
     } catch (err) { next(err); }
   }

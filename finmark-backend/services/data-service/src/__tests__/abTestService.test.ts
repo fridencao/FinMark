@@ -28,8 +28,8 @@ describe('abTestService', () => {
         type: 'conversion',
         description: 'Test different CTA buttons',
         branches: [
-          { id: 'A', name: 'Control', weight: 50 },
-          { id: 'B', name: 'Variant', weight: 50 },
+          { id: 'A', name: 'Control', weight: 50, impressions: 0, conversions: 0 },
+          { id: 'B', name: 'Variant', weight: 50, impressions: 0, conversions: 0 },
         ],
         metric: 'click_rate',
       };
@@ -64,9 +64,9 @@ describe('abTestService', () => {
         name: 'Email Subject Lines',
         type: 'engagement',
         branches: [
-          { id: 'A', name: 'Original', weight: 34 },
-          { id: 'B', name: 'Question', weight: 33 },
-          { id: 'C', name: 'Urgency', weight: 33 },
+          { id: 'A', name: 'Original', weight: 34, impressions: 0, conversions: 0 },
+          { id: 'B', name: 'Question', weight: 33, impressions: 0, conversions: 0 },
+          { id: 'C', name: 'Urgency', weight: 33, impressions: 0, conversions: 0 },
         ],
         metric: 'open_rate',
       };
@@ -243,7 +243,8 @@ describe('abTestService', () => {
 
       const result = await abTestService.recordConversion('test-001', 'B');
 
-      expect(result.branches[1].conversions).toBe(4);
+      const branches = result.branches as unknown as abTestService.Branch[];
+      expect(branches[1].conversions).toBe(4);
     });
 
     it('should throw if test is not running', async () => {

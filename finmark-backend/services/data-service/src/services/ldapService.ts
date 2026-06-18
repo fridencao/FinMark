@@ -73,7 +73,11 @@ function searchLdap(
       filter,
       scope: 'sub',
       attributes: ['uid', 'mail', 'cn', 'memberOf', 'sAMAccountName', 'displayName', 'email'],
-    });
+    }, () => {}) as unknown as {
+      on(event: 'searchEntry', listener: (entry: ldap.SearchEntry) => void): unknown;
+      on(event: 'error', listener: (err: Error) => void): unknown;
+      on(event: 'end', listener: (result: unknown) => void): unknown;
+    };
 
     searchClient.on('searchEntry', (entry: ldap.SearchEntry) => {
       entries.push(entry);
@@ -158,7 +162,7 @@ export async function getUserInfo(
 }
 
 export function mapLdapUser(entry: ldap.SearchEntry): LdapUser {
-  const obj = entry.object as Record<string, any>;
+  const obj = (entry as unknown as { object: Record<string, any> }).object;
 
   let groups: string[] = [];
   const memberOfAttr = entry.attributes?.find(

@@ -117,7 +117,7 @@ maskingRouter.delete('/rules/:id',
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const deleted = deleteMaskingRule(req.params.id);
+      const deleted = deleteMaskingRule(req.params!.id);
       if (!deleted) throw new ValidationError('Rule not found');
 
       res.json({ success: true, message: 'Rule deleted successfully' });

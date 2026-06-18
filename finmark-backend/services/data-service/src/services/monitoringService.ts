@@ -154,7 +154,7 @@ export const monitoringService = {
         by: ['errorMessage'],
         where: errorWhere,
         _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        orderBy: { _count: { _all: 'desc' as const } as unknown as Prisma.ModelCallLogCountOrderByAggregateInput },
       }),
     ]);
 
@@ -164,7 +164,7 @@ export const monitoringService = {
       errorRate: totalCalls > 0 ? +((errorCalls / totalCalls) * 100).toFixed(2) : 0,
       byError: byError.map((e) => ({
         error: e.errorMessage || 'Unknown',
-        count: e._count._all,
+        count: (e._count as { _all: number })._all,
       })),
     };
   },
