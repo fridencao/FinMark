@@ -2,11 +2,8 @@
   "name": "finmark-backend",
   "version": "1.0.0",
   "private": true,
-  "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "esbuild", "prisma"]
-  },
   "scripts": {
-    "dev": "pnpm -r --parallel -filter '*/service' dev",
+    "dev": "pnpm --parallel --filter data-service --filter llm-gateway --filter agent-service dev",
     "dev:data": "pnpm --filter data-service dev",
     "dev:llm": "pnpm --filter llm-gateway dev",
     "dev:agent": "pnpm --filter agent-service dev",
@@ -16,5 +13,15 @@
     "db:generate": "pnpm --filter data-service db:generate",
     "db:studio": "pnpm --filter data-service db:studio",
     "test:agent": "pnpm --filter agent-service exec tsx test/integration.test.ts"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "protobufjs",
+      "msgpackr-extract"
+    ]
   }
 }

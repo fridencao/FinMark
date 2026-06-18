@@ -24,6 +24,21 @@ export default defineConfig(({mode}) => {
         },
       },
     },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+      exclude: ['**/finmark-backend/**', '**/node_modules/**'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'html'],
+        thresholds: {
+          lines: 60,
+          functions: 60,
+          branches: 50,
+        },
+      },
+    },
     build: {
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
