@@ -1,20 +1,57 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# FinMark AI — 多智能体营销平台
 
-# Run and deploy your AI Studio app
+Enterprise multi-agent financial marketing platform. 企业级多智能体金融营销平台。
 
-This contains everything you need to run your app locally.
+## Architecture
 
-View your app in AI Studio: https://ai.studio/apps/9352b771-4e7b-496d-a158-49eef6bb8ce3
+```
+┌──────────────┐    ┌─────────────┐    ┌───────────────┐
+│   Frontend   │───▶│    Kong     │───▶│  Data Service │───▶ PostgreSQL
+│  Vite+React  │    │   Gateway   │    │   Express     │───▶ Redis/BullMQ
+│   :3000      │    │   :8000     │    │   :3001       │
+└──────────────┘    └──────┬──────┘    └───────────────┘
+                           │                   
+                    ┌──────┴──────┐    ┌───────────────┐
+                    │ Agent Svc  │───▶│  LLM Gateway  │───▶ Gemini/OpenAI
+                    │  Express   │    │   Express     │
+                    │   :3003    │    │   :3002       │
+                    └────────────┘    └───────────────┘
+```
 
-## Run Locally
+## Quick Start
 
-**Prerequisites:**  Node.js
+### Frontend
 
+```sh
+npm install
+cp .env.example .env.local   # set GEMINI_API_KEY
+npm run dev                   # :3000, proxies /api → :3001
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Backend (separate terminal)
+
+```sh
+cd finmark-backend
+pnpm install
+# requires: PostgreSQL on :5432, Redis on :6379
+pnpm dev                      # starts all 3 services in parallel
+```
+
+## Commands
+
+| Command | What |
+|---------|------|
+| `npm run dev` | Vite dev server, port 3000 |
+| `npm run build` | `vite build` → `dist/` |
+| `npm run preview` | Vite preview |
+| `npm run lint` | `tsc --noEmit` |
+| `npm test` | Vitest |
+| `npm test -- --run` | Tests once |
+| `npm run test:coverage` | Vitest with coverage (thresholds: 60% lines, 50% branches) |
+
+## Tech Stack
+
+- **Frontend**: React 19, Vite 6, TypeScript 5.8, Tailwind CSS v4, shadcn/ui, Zustand v5, TanStack Query v5
+- **Backend**: Express, Prisma, BullMQ, Zod
+- **AI**: Gemini API (multi-provider: Gemini + OpenAI-compatible)
+- **Gateway**: Kong API Gateway
