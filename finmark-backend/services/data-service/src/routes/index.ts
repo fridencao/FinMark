@@ -13,3 +13,5 @@ export { abTestRouter } from './abTest.js';
 export { monitoringRouter } from './monitoring.js';
 export { agentConfigRouter } from './agentConfigs.js';
 export { permissionRouter } from './permissions.js';
+export { benefitsRouter } from './benefits.js';
+export { channelsRouter } from './channels.js';

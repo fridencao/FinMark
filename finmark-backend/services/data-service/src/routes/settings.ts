@@ -4,6 +4,8 @@ import { body, param, validationResult } from 'express-validator';
 import { prisma } from '../config/database.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { ValidationError } from '../middleware/error.js';
+import { healthCheck as benefitHealthCheck } from '../services/benefitService.js';
+import { healthCheck as channelHealthCheck } from '../services/channelService.js';
 
 export const settingsRouter: RouterType = Router();
 
@@ -118,8 +120,22 @@ settingsRouter.get('/integrations', (_req, res) => {
   });
 });
 
+const healthCheckMap: Record<string, () => Promise<{ status: string; reason?: string }>> = {
+  rights: benefitHealthCheck,
+  channel: channelHealthCheck,
+};
+
 settingsRouter.post('/integrations/:type/connect', async (req, res, next) => {
   try {
+    const { type } = req.params as Record<string, string>;
+    const check = healthCheckMap[type];
+    if (check) {
+      const health = await check();
+      if (health.status === 'connected') {
+        return res.json({ success: true, data: { status: 'connected', lastSync: new Date().toISOString() } });
+      }
+      return res.json({ success: true, data: { status: 'error', reason: health.reason } });
+    }
     res.json({ success: true, data: { status: 'connected', lastSync: new Date().toISOString() } });
   } catch (err) { next(err); }
 });

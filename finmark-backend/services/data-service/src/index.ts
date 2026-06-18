@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import type { Application } from 'express';
 import cors from 'cors';
-import { authRouter, scenarioRouter, atomRouter, userRouter, performanceRouter, settingsRouter, strategyRouter, complianceRouter, auditRouter, abTestRouter, taskScheduleRouter, maskingRouter, monitoringRouter, agentConfigRouter, permissionRouter } from './routes/index.js';
+import { authRouter, scenarioRouter, atomRouter, userRouter, performanceRouter, settingsRouter, strategyRouter, complianceRouter, auditRouter, abTestRouter, taskScheduleRouter, maskingRouter, monitoringRouter, agentConfigRouter, permissionRouter, channelsRouter, benefitsRouter } from './routes/index.js';
 import { agentProxyRouter } from './routes/agentProxy.js';
 import { alarmRouter } from './routes/alarms.js';
 import { reportRouter } from './routes/reports.js';
@@ -59,6 +59,8 @@ app.use('/api/task-schedules', taskScheduleRouter);
 app.use('/api/masking', maskingRouter);
 app.use('/api/monitoring', monitoringRouter);
 app.use('/api/permissions', permissionRouter);
+app.use('/api/channels', channelsRouter);
+app.use('/api/benefits', benefitsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
