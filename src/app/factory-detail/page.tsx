@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Play, Copy, Clock, Users, Target, GitBranch, ShieldChe
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { getScenario, executeScenario } from '@/services/scenario';
+import { getAudiencePreview } from '@/services/audience';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,18 @@ export function FactoryDetailPage() {
   const [activeTab, setActiveTab] = useState('config');
   const [channels, setChannels] = useState(channelConfigs);
   const [showPreview, setShowPreview] = useState(false);
+
+  const segmentConfig = (scenario as any)?.segmentConfig ?? (scenario as any)?.config?.segment;
+  const conditions = segmentConfig?.criteria
+    ? [{ id: '1', field: 'segment', operator: 'in', value: segmentConfig.criteria }]
+    : [{ id: '1', field: 'scenario_id', operator: 'eq', value: scenario?.id ?? id }];
+
+  const { data: audienceData, isLoading: audienceLoading } = useQuery({
+    queryKey: ['audience-preview', scenario?.id ?? id],
+    queryFn: () => getAudiencePreview(conditions, 10000),
+    enabled: activeTab === 'target' && !!scenario,
+  });
+  const audience = audienceData?.data?.data ?? audienceData?.data;
 
   const t = language === 'zh' ? {
     title: '场景详情', edit: '编辑', save: '保存', execute: '执行', duplicate: '复制', back: '返回',
@@ -234,9 +247,72 @@ export function FactoryDetailPage() {
 
         <TabsContent value="target" className="mt-6">
           <Card className="p-6">
-            <p className="text-sm text-slate-500 text-center py-8">
-              {language === 'zh' ? '客群数据需要从大数据平台获取' : 'Customer data requires big data platform integration'}
-            </p>
+            {audienceLoading ? (
+              <div className="text-center py-8 text-slate-400">
+                {language === 'zh' ? '加载客群数据...' : 'Loading audience...'}
+              </div>
+            ) : audience ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-indigo-600">
+                      {(audience.totalCount ?? 0).toLocaleString()}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {language === 'zh' ? '客群规模' : 'Audience Size'}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {audience.reachRate ?? '--'}{audience.reachRate != null ? '%' : ''}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {language === 'zh' ? '预计触达率' : 'Reach Rate'}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {(audience.estimatedReach ?? 0).toLocaleString()}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {language === 'zh' ? '预计触达' : 'Estimated Reach'}
+                    </div>
+                  </div>
+                </div>
+                {audience.profile && (
+                  <div>
+                    <h4 className="font-bold mb-2">
+                      {language === 'zh' ? '客群画像' : 'Audience Profile'}
+                    </h4>
+                    {audience.profile.topTags && audience.profile.topTags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {audience.profile.topTags.map((tag: string) => (
+                          <Badge key={tag} variant="secondary">{tag}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {audience.profile.avgAge != null && (
+                        <div>
+                          <span className="text-slate-500">{language === 'zh' ? '平均年龄' : 'Avg Age'}:</span>{' '}
+                          <span className="font-medium">{audience.profile.avgAge}</span>
+                        </div>
+                      )}
+                      {audience.profile.avgAum != null && (
+                        <div>
+                          <span className="text-slate-500">{language === 'zh' ? '平均 AUM' : 'Avg AUM'}:</span>{' '}
+                          <span className="font-medium">{audience.profile.avgAum.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 text-center py-8">
+                {language === 'zh' ? '暂无客群数据' : 'No audience data'}
+              </p>
+            )}
           </Card>
         </TabsContent>
 
