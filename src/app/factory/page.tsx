@@ -4,6 +4,7 @@ import { Factory, Plus, Wand2, Users, Zap, TrendingUp, ShieldCheck, Sparkles, Ed
 import { motion } from 'motion/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +14,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getScenarios, getDefaultScenarios, createScenario, deleteScenario, Scenario } from '@/services/scenario';
 
-const categories = (lang: 'zh' | 'en') => [
-  { value: 'all', label: lang === 'zh' ? '全部' : 'All' },
-  { value: 'acquisition', label: lang === 'zh' ? '获客期' : 'Acquisition' },
-  { value: 'growth', label: lang === 'zh' ? '成长期' : 'Growth' },
-  { value: 'mature', label: lang === 'zh' ? '成熟期' : 'Mature' },
-  { value: 'declining', label: lang === 'zh' ? '衰退期' : 'Declining' },
-  { value: 'recovery', label: lang === 'zh' ? '挽回期' : 'Recovery' },
-];
+const categories = (lang: 'zh' | 'en') => {
+  const t = translations[lang].factoryPage;
+  return [
+    { value: 'all', label: t.all },
+    { value: 'acquisition', label: lang === 'zh' ? '获客期' : 'Acquisition' },
+    { value: 'growth', label: lang === 'zh' ? '成长期' : 'Growth' },
+    { value: 'mature', label: lang === 'zh' ? '成熟期' : 'Mature' },
+    { value: 'declining', label: lang === 'zh' ? '衰退期' : 'Declining' },
+    { value: 'recovery', label: lang === 'zh' ? '挽回期' : 'Recovery' },
+  ];
+};
 
 export function FactoryPage() {
   const { language } = useAppStore();
@@ -64,78 +68,12 @@ export function FactoryPage() {
     },
   });
 
+  const t = translations[language].factoryPage;
+
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAIWizard, setShowAIWizard] = useState(false);
   const [aiInput, setAiInput] = useState('');
-
-  const t = language === 'zh' ? {
-    title: '场景工厂',
-    subtitle: '创建和管理营销场景模板',
-    smartGenerate: 'AI智能生成',
-    createScenario: '创建场景',
-    marketInspiration: '市场洞察',
-    marketInspirationDesc: '实时热点助力营销灵感',
-    realtimeUpdate: '实时',
-    goldUpdate: '黄金价格突破历史新高',
-    goldTag: '贵金属',
-    goldAction: '启动黄金定投场景',
-    rrrUpdate: '央行宣布降准 0.5%',
-    rrrTag: '货币政策',
-    rrrAction: '启动信贷促活场景',
-    nasdaqUpdate: '纳斯达克科技股集体回调',
-    nasdaqTag: '权益市场',
-    nasdaqAction: '启动防御性资产配置',
-    complianceScore: '合规评分',
-    riskLevel: '风险等级',
-    lowRisk: '低风险',
-    mediumRisk: '中风险',
-    highRisk: '高风险',
-    insightLogic: '洞察逻辑',
-    strategyPath: '策略路径',
-    edit: '编辑',
-    execute: '执行',
-    aiArchitect: 'AI智能生成场景',
-    aiArchitectDesc: '描述您的需求，AI帮您创建场景',
-    aiPlaceholder: '帮我创建一个针对高净值客户的理财赎回预警场景...',
-    generating: '生成中...',
-    generate: '生成场景',
-    cancel: '取消',
-    searchPlaceholder: '搜索场景...',
-  } : {
-    title: 'Scenario Factory',
-    subtitle: 'Create and manage marketing scenario templates',
-    smartGenerate: 'AI Generate',
-    createScenario: 'Create Scenario',
-    marketInspiration: 'Market Insights',
-    marketInspirationDesc: 'Real-time hotspots for marketing inspiration',
-    realtimeUpdate: 'Real-time',
-    goldUpdate: 'Gold Price Hits Record High',
-    goldTag: 'Precious Metals',
-    goldAction: 'Start Gold AIP',
-    rrrUpdate: 'Central Bank Cuts RRR by 0.5%',
-    rrrTag: 'Monetary Policy',
-    rrrAction: 'Start Credit Activation',
-    nasdaqUpdate: 'Nasdaq Tech Stocks Correction',
-    nasdaqTag: 'Equity Market',
-    nasdaqAction: 'Start Defensive Allocation',
-    complianceScore: 'Compliance',
-    riskLevel: 'Risk',
-    lowRisk: 'Low',
-    mediumRisk: 'Medium',
-    highRisk: 'High',
-    insightLogic: 'Insight',
-    strategyPath: 'Strategy',
-    edit: 'Edit',
-    execute: 'Execute',
-    aiArchitect: 'AI Generate Scenario',
-    aiArchitectDesc: 'Describe your needs, AI creates the scenario',
-    aiPlaceholder: 'Create a wealth warning scenario for high-net-worth clients...',
-    generating: 'Generating...',
-    generate: 'Generate',
-    cancel: 'Cancel',
-    searchPlaceholder: 'Search scenarios...',
-  };
 
   const getIcon = (iconName?: string) => {
     switch (iconName) {
@@ -241,7 +179,7 @@ export function FactoryPage() {
               <div className="font-semibold text-slate-800 dark:text-slate-200 mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{item.title}</div>
               <Button variant="ghost" size="sm" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 p-0 h-auto rounded-xl" onClick={() => handleMarketInspire(item.action)}>
                 <Wand2 className="w-3 h-3" />
-                {language === 'zh' ? '启动场景' : 'Start Scenario'}
+                {t.startScenario}
               </Button>
             </div>
           ))}

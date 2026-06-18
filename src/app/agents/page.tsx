@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Users, BarChart3, PenTool, AlertTriangle, Zap, BarChart3 as AnalystIcon, Settings, Play, Pause, Activity, Loader2, BookOpen, Cpu, SlidersHorizontal } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { getAgentStatus, getAgentConfigs, updateAgentConfig, toggleAgent, type AgentConfig } from '@/services/agent';
 import { getModels } from '@/services/settings';
 import { Card } from '@/components/ui/card';
@@ -136,25 +137,7 @@ export function AgentsPage() {
     },
   });
 
-  const t = language === 'zh' ? {
-    title: '智能体管理', subtitle: '配置和管理AI智能体',
-    status: '状态', running: '运行中', stopped: '已停止',
-    todayCalls: '今日调用', successRate: '成功率', avgResponseTime: '平均响应时间',
-    config: '配置', stop: '停止', start: '启动',
-    modelConfig: '模型配置', temperature: '温度参数', maxTokens: '最大Token数',
-    systemPrompt: '系统提示词', promptPlaceholder: '留空则使用默认提示词',
-    promptTip: '自定义该智能体的系统提示词，修改后需要重新运行编排才能生效',
-    save: '保存配置', test: '测试',
-  } : {
-    title: 'Agent Management', subtitle: 'Configure and manage AI agents',
-    status: 'Status', running: 'Running', stopped: 'Stopped',
-    todayCalls: 'Today Calls', successRate: 'Success Rate', avgResponseTime: 'Avg Response',
-    config: 'Config', stop: 'Stop', start: 'Start',
-    modelConfig: 'Model Config', temperature: 'Temperature', maxTokens: 'Max Tokens',
-    systemPrompt: 'System Prompt', promptPlaceholder: 'Leave empty to use default',
-    promptTip: 'Custom system prompt for this agent. Changes take effect on next orchestration.',
-    save: 'Save Config', test: 'Test',
-  };
+  const t = translations[language].agentsPage;
 
   const getStats = (agentId: string) => {
     const s = statuses[agentId];

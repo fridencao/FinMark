@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Copy, Trash2, Tag, TrendingUp, MessageSquare, Zap, BarChart3, Clock, Users, ShieldCheck, Edit3, Play } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -65,10 +66,12 @@ export function BrainAtomDetailPage() {
   };
 
   const handleDelete = () => {
-    if (confirm(language === 'zh' ? '确认删除此原子？此操作不可撤销。' : 'Confirm delete? This cannot be undone.')) {
+    if (confirm(t.confirmDelete)) {
       deleteMutation.mutate();
     }
   };
+
+  const t = translations[language].atomDetailPage;
 
   if (isLoading) {
     return (
@@ -85,73 +88,11 @@ export function BrainAtomDetailPage() {
   if (isError || !atom) {
     return (
       <div className="p-8 text-center">
-        <p className="text-slate-500 mb-4">{language === 'zh' ? '未找到该原子' : 'Atom not found'}</p>
-        <Button onClick={() => navigate('/brain')}>{language === 'zh' ? '返回列表' : 'Back to list'}</Button>
+        <p className="text-slate-500 mb-4">{t.atomNotFound}</p>
+        <Button onClick={() => navigate('/brain')}>{t.backToList}</Button>
       </div>
     );
   }
-
-  const t = language === 'zh' ? {
-    title: '原子详情',
-    edit: '编辑',
-    save: '保存',
-    duplicate: '复制',
-    delete: '删除',
-    back: '返回',
-    config: '基础配置',
-    usage: '使用记录',
-    analytics: '效果分析',
-    version: '版本',
-    status: '状态',
-    active: '启用',
-    inactive: '停用',
-    type: '类型',
-    category: '分类',
-    tags: '标签',
-    description: '描述',
-    conditions: '计算条件',
-    field: '字段',
-    operator: '运算符',
-    value: '值',
-    unit: '单位',
-    metrics: '统计数据',
-    totalCount: '总数量',
-    accuracy: '准确率',
-    lastUpdated: '最后更新',
-    usedIn: '应用于',
-    scenarioCount: '场景数',
-    create: '创建原子',
-  } : {
-    title: 'Atom Detail',
-    edit: 'Edit',
-    save: 'Save',
-    duplicate: 'Duplicate',
-    delete: 'Delete',
-    back: 'Back',
-    config: 'Config',
-    usage: 'Usage',
-    analytics: 'Analytics',
-    version: 'Version',
-    status: 'Status',
-    active: 'Active',
-    inactive: 'Inactive',
-    type: 'Type',
-    category: 'Category',
-    tags: 'Tags',
-    description: 'Description',
-    conditions: 'Conditions',
-    field: 'Field',
-    operator: 'Operator',
-    value: 'Value',
-    unit: 'Unit',
-    metrics: 'Metrics',
-    totalCount: 'Total Count',
-    accuracy: 'Accuracy',
-    lastUpdated: 'Last Updated',
-    usedIn: 'Used In',
-    scenarioCount: 'Scenarios',
-    create: 'Create Atom',
-  };
 
   return (
     <div className="space-y-6">
@@ -317,7 +258,7 @@ export function BrainAtomDetailPage() {
                 )) : (
                   <TableRow>
                     <TableCell className="text-slate-400 text-center py-8">
-                      {language === 'zh' ? '暂无使用记录' : 'No usage data'}
+                      {t.noUsageData}
                     </TableCell>
                   </TableRow>
                 )}

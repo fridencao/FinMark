@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, AlertTriangle, CheckCircle, XCircle, Clock, Settings, Search, Filter, Plus, Eye, Edit3, Trash2, Volume2, VolumeX, Mail, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,73 +37,7 @@ export function AlarmManagementPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const t = language === 'zh' ? {
-    title: '告警管理',
-    subtitle: '配置监控告警规则',
-    create: '创建规则',
-    rules: '告警规则',
-    historyTab: '告警历史',
-    settings: '通知设置',
-    name: '规则名称',
-    metric: '监控指标',
-    condition: '条件',
-    threshold: '阈值',
-    level: '级别',
-    channel: '渠道',
-    status: '状态',
-    enabled: '已启用',
-    disabled: '已停用',
-    warning: '警告',
-    critical: '严重',
-    historyRecord: '历史记录',
-    time: '时间',
-    value: '实际值',
-    acknowledge: '确认',
-    acknowledged: '已确认',
-    unacknowledged: '未确认',
-    resolved: '已解决',
-    triggered: '触发中',
-    searchPlaceholder: '搜索规则...',
-    notification: '通知方式',
-    email: '邮件',
-    sms: '短信',
-    wechat: '企业微信',
-    frequency: '通知频率',
-    mute: '静音',
-  } : {
-    title: 'Alarm Management',
-    subtitle: 'Configure monitoring alarm rules',
-    create: 'Create Rule',
-    rules: 'Alarm Rules',
-    historyTab: 'History',
-    settings: 'Settings',
-    name: 'Name',
-    metric: 'Metric',
-    condition: 'Condition',
-    threshold: 'Threshold',
-    level: 'Level',
-    channel: 'Channel',
-    status: 'Status',
-    enabled: 'Enabled',
-    disabled: 'Disabled',
-    warning: 'Warning',
-    critical: 'Critical',
-    historyRecord: 'History',
-    time: 'Time',
-    value: 'Value',
-    acknowledge: 'Acknowledge',
-    acknowledged: 'Acknowledged',
-    unacknowledged: 'Unacknowledged',
-    resolved: 'Resolved',
-    triggered: 'Triggered',
-    searchPlaceholder: 'Search rules...',
-    notification: 'Notification',
-    email: 'Email',
-    sms: 'SMS',
-    wechat: 'WeChat',
-    frequency: 'Frequency',
-    mute: 'Mute',
-  };
+  const t = translations[language].alarmPage;
 
   const toggleRule = (ruleId: string) => {
     setRules(rules.map(r => 
@@ -173,7 +108,7 @@ export function AlarmManagementPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{alarmHistory.length}</p>
-              <p className="text-xs text-slate-500">总告警数</p>
+              <p className="text-xs text-slate-500">{t.totalAlarms}</p>
             </div>
           </div>
         </Card>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Users, Database, GitBranch, FileText, Settings as SettingsIcon, Plus, ArrowRight, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { getAudiencePreview } from '@/services/audience';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,39 +71,7 @@ export function ExpertPage() {
     setConditions(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
   };
 
-  const t = language === 'zh' ? {
-    title: '专家模式',
-    subtitle: '高级配置和批量操作',
-    modules: '功能模块',
-    audience: '高级客群圈选',
-    batch: '批量策略配置',
-    workflow: '自定义工作流',
-    template: '模板管理',
-    conditionBuilder: '条件构建器',
-    addCondition: '添加条件',
-    clear: '清除',
-    apply: '应用',
-    targetAudience: '目标客群',
-    audienceSize: '客群规模',
-    estimatedReach: '预计触达',
-    generateAudience: '生成客群',
-  } : {
-    title: 'Expert Mode',
-    subtitle: 'Advanced configuration and batch operations',
-    modules: 'Modules',
-    audience: 'Advanced Audience',
-    batch: 'Batch Strategy',
-    workflow: 'Custom Workflow',
-    template: 'Template Manager',
-    conditionBuilder: 'Condition Builder',
-    addCondition: 'Add Condition',
-    clear: 'Clear',
-    apply: 'Apply',
-    targetAudience: 'Target Audience',
-    audienceSize: 'Audience Size',
-    estimatedReach: 'Estimated Reach',
-    generateAudience: 'Generate Audience',
-  };
+  const t = translations[language].expertPage;
 
   const fields = [
     { key: 'age', label: language === 'zh' ? '年龄' : 'Age' },

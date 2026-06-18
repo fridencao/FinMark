@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Brain, Plus, Search, Zap, MessageCircle, FileText, ShieldAlert, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { getAtoms, createAtom, deleteAtom, Atom } from '@/services/strategy';
 
-const typeConfig = (lang: 'zh' | 'en') => ({
-  hook: { label: lang === 'zh' ? '钩子' : 'Hook', badgeVariant: 'orange' as const },
-  channel: { label: lang === 'zh' ? '渠道' : 'Channel', badgeVariant: 'info' as const },
-  content: { label: lang === 'zh' ? '内容' : 'Content', badgeVariant: 'purple' as const },
-  risk: { label: lang === 'zh' ? '风险' : 'Risk', badgeVariant: 'error' as const },
-});
+const typeConfig = (lang: 'zh' | 'en') => {
+  const t = translations[lang].brainPage;
+  return {
+    hook: { label: t.hook, badgeVariant: 'orange' as const },
+    channel: { label: t.channel, badgeVariant: 'info' as const },
+    content: { label: t.content, badgeVariant: 'purple' as const },
+    risk: { label: t.risk, badgeVariant: 'error' as const },
+  };
+};
 
 export function BrainPage() {
   const { language } = useAppStore();
@@ -40,7 +44,7 @@ export function BrainPage() {
   const createMutation = useMutation({
     mutationFn: createAtom,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['atoms'] }); setDialogOpen(false); },
-    onError: (err: any) => setCreateError(err?.response?.data?.message || (language === 'zh' ? '创建失败' : 'Failed to create')),
+    onError: (err: any) => setCreateError(err?.response?.data?.message || t.createFailed),
   });
 
   const deleteMutation = useMutation({
@@ -49,44 +53,11 @@ export function BrainPage() {
       queryClient.invalidateQueries({ queryKey: ['atoms'] });
     },
     onError: (err: any) => {
-      setDeleteError(err?.response?.data?.message || (language === 'zh' ? '删除失败' : 'Failed to delete'));
+      setDeleteError(err?.response?.data?.message || t.deleteFailed);
     },
   });
 
-  const t = language === 'zh' ? {
-    title: '策略原子库',
-    subtitle: '管理和复用营销策略组件',
-    createAtom: '创建原子',
-    searchPlaceholder: '搜索策略原子...',
-    all: '全部',
-    hook: '钩子',
-    channel: '渠道',
-    content: '内容',
-    risk: '风险',
-    successRate: '成功率',
-    usageCount: '使用次数',
-    applicableScenarios: '适用场景',
-    addScenario: '添加场景',
-    edit: '编辑',
-    delete: '删除',
-  } : {
-    title: 'Strategy Brain',
-    subtitle: 'Manage and reuse marketing strategy components',
-    createAtom: 'Create Atom',
-    searchPlaceholder: 'Search strategy atoms...',
-    all: 'All',
-    hook: 'Hook',
-    channel: 'Channel',
-    content: 'Content',
-    risk: 'Risk',
-    successRate: 'Success Rate',
-    usageCount: 'Usage Count',
-    applicableScenarios: 'Applicable Scenarios',
-    addScenario: 'Add Scenario',
-    edit: 'Edit',
-    delete: 'Delete',
-  };
-
+  const t = translations[language].brainPage;
   const types = typeConfig(language);
 
   const filteredAtoms = atoms
@@ -207,8 +178,8 @@ export function BrainPage() {
             <div className="pt-4 border-t border-slate-50">
               <div className="text-[10px] text-slate-400 uppercase font-bold mb-2">{t.applicableScenarios}</div>
               <div className="flex flex-wrap gap-1">
-                <Badge variant="secondary" className="text-[10px] bg-slate-100">{language === 'zh' ? '流失挽回' : 'Churn Recovery'}</Badge>
-                <Badge variant="secondary" className="text-[10px] bg-slate-100">{language === 'zh' ? '新发基金' : 'New Fund'}</Badge>
+                <Badge variant="secondary" className="text-[10px] bg-slate-100">{t.churnRecovery}</Badge>
+                <Badge variant="secondary" className="text-[10px] bg-slate-100">{t.newFund}</Badge>
                 <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2">
                   + {t.addScenario}
                 </Button>

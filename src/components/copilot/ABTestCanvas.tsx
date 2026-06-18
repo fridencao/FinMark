@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
-import { Network, X } from 'lucide-react';
+import { Network } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { translations } from '@/i18n';
 
 interface ABTestConfig {
   branchA: {
@@ -34,56 +40,33 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
   });
   const [weight, setWeight] = useState(50);
 
-  const t = language === 'zh' ? {
-    title: '策略画布 - A/B 测试配置',
-    branchA: '分支 A',
-    branchB: '分支 B',
-    content: '文案内容',
-    channel: '触达渠道',
-    expectedConversion: '预期转化率',
-    weight: '流量权重',
-    traffic分配: '流量分配可视化',
-    cancel: '取消',
-    save: '保存配置',
-  } : {
-    title: 'Strategy Canvas - A/B Test Config',
-    branchA: 'Branch A',
-    branchB: 'Branch B',
-    content: 'Content',
-    channel: 'Channel',
-    expectedConversion: 'Expected Conversion',
-    weight: 'Traffic Weight',
-    trafficDistribution: 'Traffic Distribution',
-    cancel: 'Cancel',
-    save: 'Save Config',
-  };
+  const t = translations[language].abTestCanvas;
 
   const handleSave = () => {
-    console.log('AB Test Config:', { ...config, weight });
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="max-w-2xl">
+        <SheetHeader>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
               <Network className="w-5 h-5 text-emerald-600" />
             </div>
-            <h3 className="font-bold text-lg">{t.title}</h3>
+            <SheetTitle>{t.title}</SheetTitle>
           </div>
-        </div>
+        </SheetHeader>
 
-        <div className="p-6 space-y-6">
+        <SheetBody className="space-y-6">
           {/* 分支对比 */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-4">
             <Card className="p-4 space-y-4">
               <h4 className="font-bold text-sm text-center">{t.branchA}</h4>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs">{t.content}</Label>
-                <Input 
+                <Input
                   value={config.branchA.content}
                   onChange={(e) => setConfig(prev => ({
                     ...prev,
@@ -92,10 +75,10 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
                   className="text-sm"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs">{t.channel}</Label>
-                <Input 
+                <Input
                   value={config.branchA.channel}
                   onChange={(e) => setConfig(prev => ({
                     ...prev,
@@ -104,11 +87,11 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
                   className="text-sm"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs">{t.expectedConversion}</Label>
                 <div className="flex items-center gap-2">
-                  <Input 
+                  <Input
                     type="number"
                     value={config.branchA.conversion}
                     onChange={(e) => setConfig(prev => ({
@@ -124,10 +107,10 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
 
             <Card className="p-4 space-y-4">
               <h4 className="font-bold text-sm text-center">{t.branchB}</h4>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs">{t.content}</Label>
-                <Input 
+                <Input
                   value={config.branchB.content}
                   onChange={(e) => setConfig(prev => ({
                     ...prev,
@@ -136,10 +119,10 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
                   className="text-sm"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs">{t.channel}</Label>
-                <Input 
+                <Input
                   value={config.branchB.channel}
                   onChange={(e) => setConfig(prev => ({
                     ...prev,
@@ -148,11 +131,11 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
                   className="text-sm"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs">{t.expectedConversion}</Label>
                 <div className="flex items-center gap-2">
-                  <Input 
+                  <Input
                     type="number"
                     value={config.branchB.conversion}
                     onChange={(e) => setConfig(prev => ({
@@ -191,14 +174,14 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
 
           {/* 流量分配可视化 */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">{t.traffic分配}</Label>
+            <Label className="text-sm font-medium">{t.trafficDistribution}</Label>
             <div className="h-8 rounded-lg overflow-hidden flex bg-slate-100">
-              <div 
-                className="bg-indigo-500 transition-all duration-300" 
+              <div
+                className="bg-indigo-500 transition-all duration-300"
                 style={{ width: `${weight}%` }}
               />
-              <div 
-                className="bg-emerald-500 transition-all duration-300" 
+              <div
+                className="bg-emerald-500 transition-all duration-300"
                 style={{ width: `${100 - weight}%` }}
               />
             </div>
@@ -207,9 +190,9 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
               <span>Branch B</span>
             </div>
           </div>
-        </div>
+        </SheetBody>
 
-        <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
+        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t.cancel}
           </Button>
@@ -217,7 +200,7 @@ export function ABTestCanvas({ open, onOpenChange }: ABTestCanvasProps) {
             {t.save}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

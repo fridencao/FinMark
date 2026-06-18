@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Play, Copy, Clock, Users, Target, GitBranch, ShieldCheck, Zap, BarChart3, MessageSquare, Settings, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { getScenario, executeScenario } from '@/services/scenario';
 import { getAudiencePreview } from '@/services/audience';
 import { Card } from '@/components/ui/card';
@@ -66,29 +67,7 @@ export function FactoryDetailPage() {
   });
   const audience = audienceData?.data?.data ?? audienceData?.data;
 
-  const t = language === 'zh' ? {
-    title: '场景详情', edit: '编辑', save: '保存', execute: '执行', duplicate: '复制', back: '返回',
-    config: '基础配置', target: '目标客群', content: '内容配置', channels: '渠道配置', preview: '预览',
-    complianceScore: '合规评分', riskLevel: '风险等级', lowRisk: '低风险', mediumRisk: '中风险', highRisk: '高风险',
-    targetCustomers: '目标客户数', expectedROI: '预期ROI', schedule: '执行计划',
-    startDate: '开始日期', endDate: '结束日期', frequency: '发送频率', daily: '每日',
-    conditions: '筛选条件', field: '字段', operator: '运算符', value: '值', duration: '时间范围',
-    channel: '渠道', priority: '优先级', maxPerDay: '每日上限', enabled: '启用',
-    contentTitle: '标题', contentBody: '正文', buttons: '按钮', customerList: '客户列表',
-    name: '姓名', level: '等级', assets: '资产', decline: '下降比例', status: '状态', response: '响应',
-    aiOptimize: 'AI优化内容',
-  } : {
-    title: 'Scenario Detail', edit: 'Edit', save: 'Save', execute: 'Execute', duplicate: 'Duplicate', back: 'Back',
-    config: 'Config', target: 'Target', content: 'Content', channels: 'Channels', preview: 'Preview',
-    complianceScore: 'Compliance', riskLevel: 'Risk', lowRisk: 'Low', mediumRisk: 'Medium', highRisk: 'High',
-    targetCustomers: 'Target Customers', expectedROI: 'Expected ROI', schedule: 'Schedule',
-    startDate: 'Start Date', endDate: 'End Date', frequency: 'Frequency', daily: 'Daily',
-    conditions: 'Conditions', field: 'Field', operator: 'Operator', value: 'Value', duration: 'Duration',
-    channel: 'Channel', priority: 'Priority', maxPerDay: 'Max/Day', enabled: 'Enabled',
-    contentTitle: 'Title', contentBody: 'Body', buttons: 'Buttons', customerList: 'Customer List',
-    name: 'Name', level: 'Level', assets: 'Assets', decline: 'Decline', status: 'Status', response: 'Response',
-    aiOptimize: 'AI Optimize',
-  };
+  const t = translations[language].factoryDetailPage;
 
   const toggleChannel = (channelId: string) => {
     setChannels(channels.map(c =>
@@ -114,7 +93,7 @@ export function FactoryDetailPage() {
   if (!scenario) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-        <p>{language === 'zh' ? '场景不存在' : 'Scenario not found'}</p>
+        <p>{t.scenarioNotFound}</p>
         <Button variant="ghost" onClick={() => navigate('/factory')} className="mt-4">
           {t.back}
         </Button>
@@ -240,7 +219,7 @@ export function FactoryDetailPage() {
               {t.schedule}
             </h4>
             <p className="text-sm text-slate-600">
-              {(scenario as any).schedule || language === 'zh' ? '未配置' : 'Not configured'}
+              {(scenario as any).schedule || t.notConfigured}
             </p>
           </Card>
         </TabsContent>
@@ -249,7 +228,7 @@ export function FactoryDetailPage() {
           <Card className="p-6">
             {audienceLoading ? (
               <div className="text-center py-8 text-slate-400">
-                {language === 'zh' ? '加载客群数据...' : 'Loading audience...'}
+                {t.loadingAudience}
               </div>
             ) : audience ? (
               <div className="space-y-6">
@@ -259,7 +238,7 @@ export function FactoryDetailPage() {
                       {(audience.totalCount ?? 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
-                      {language === 'zh' ? '客群规模' : 'Audience Size'}
+                      {t.audienceSize}
                     </div>
                   </div>
                   <div className="p-4 bg-slate-50 rounded-lg text-center">
@@ -267,7 +246,7 @@ export function FactoryDetailPage() {
                       {audience.reachRate ?? '--'}{audience.reachRate != null ? '%' : ''}
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
-                      {language === 'zh' ? '预计触达率' : 'Reach Rate'}
+                      {t.reachRate}
                     </div>
                   </div>
                   <div className="p-4 bg-slate-50 rounded-lg text-center">
@@ -275,14 +254,14 @@ export function FactoryDetailPage() {
                       {(audience.estimatedReach ?? 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
-                      {language === 'zh' ? '预计触达' : 'Estimated Reach'}
+                      {t.estimatedReach}
                     </div>
                   </div>
                 </div>
                 {audience.profile && (
                   <div>
                     <h4 className="font-bold mb-2">
-                      {language === 'zh' ? '客群画像' : 'Audience Profile'}
+                      {t.audienceProfile}
                     </h4>
                     {audience.profile.topTags && audience.profile.topTags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-3">
@@ -294,13 +273,13 @@ export function FactoryDetailPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       {audience.profile.avgAge != null && (
                         <div>
-                          <span className="text-slate-500">{language === 'zh' ? '平均年龄' : 'Avg Age'}:</span>{' '}
+                          <span className="text-slate-500">{t.avgAge}:</span>{' '}
                           <span className="font-medium">{audience.profile.avgAge}</span>
                         </div>
                       )}
                       {audience.profile.avgAum != null && (
                         <div>
-                          <span className="text-slate-500">{language === 'zh' ? '平均 AUM' : 'Avg AUM'}:</span>{' '}
+                          <span className="text-slate-500">{t.avgAum}:</span>{' '}
                           <span className="font-medium">{audience.profile.avgAum.toLocaleString()}</span>
                         </div>
                       )}
@@ -310,7 +289,7 @@ export function FactoryDetailPage() {
               </div>
             ) : (
               <p className="text-sm text-slate-500 text-center py-8">
-                {language === 'zh' ? '暂无客群数据' : 'No audience data'}
+                {t.noAudienceData}
               </p>
             )}
           </Card>

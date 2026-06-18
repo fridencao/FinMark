@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Download, Calendar, ArrowUpRight, Plus, Pencil, Trash2, Bell, BellOff } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -174,49 +175,7 @@ export function PerformancePage() {
     queryFn: () => getActivityReports(),
   });
 
-  const t = language === 'zh' ? {
-    title: '效果仪表盘',
-    subtitle: '查看营销效果数据和报表',
-    reach: '触达量',
-    response: '响应率',
-    conversion: '转化率',
-    roi: 'ROI',
-    reachTrend: '触达量趋势',
-    channelDist: '渠道分布',
-    segmentDist: '客群分布',
-    activityRank: '活动效果排名',
-    export: '导出',
-    today: '今日',
-    week: '本周',
-    month: '本月',
-    quarter: '本季',
-    year: '本年',
-    completed: '已完成',
-    running: '进行中',
-    paused: '已暂停',
-    viewDetails: '查看详情',
-  } : {
-    title: 'Performance Dashboard',
-    subtitle: 'View marketing performance data and reports',
-    reach: 'Reach',
-    response: 'Response',
-    conversion: 'Conversion',
-    roi: 'ROI',
-    reachTrend: 'Reach Trend',
-    channelDist: 'Channel Distribution',
-    segmentDist: 'Segment Distribution',
-    activityRank: 'Activity Ranking',
-    export: 'Export',
-    today: 'Today',
-    week: 'This Week',
-    month: 'This Month',
-    quarter: 'This Quarter',
-    year: 'This Year',
-    completed: 'Completed',
-    running: 'Running',
-    paused: 'Paused',
-    viewDetails: 'View Details',
-  };
+  const t = translations[language].performancePage;
 
   const metricsRaw = metricsData?.data;
   const metrics = metricsRaw ? [
@@ -263,8 +222,8 @@ export function PerformancePage() {
         <div className="flex items-center gap-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="dashboard">{language === 'zh' ? '数据看板' : 'Dashboard'}</TabsTrigger>
-              <TabsTrigger value="alarms">{language === 'zh' ? '告警规则' : 'Alarm Rules'}</TabsTrigger>
+              <TabsTrigger value="dashboard">{t.dashboard}</TabsTrigger>
+              <TabsTrigger value="alarms">{t.alarmRules}</TabsTrigger>
             </TabsList>
           </Tabs>
           {activeTab === 'dashboard' && (
@@ -310,7 +269,7 @@ export function PerformancePage() {
             </div>
             <div className="text-3xl font-bold text-slate-900 mb-1">{metric.value}</div>
             <div className={`text-xs font-medium ${metric.up ? 'text-emerald-500' : 'text-red-500'}`}>
-              {metric.change > 0 ? '+' : ''}{metric.change}% vs {language === 'zh' ? '上周' : 'last week'}
+              {metric.change > 0 ? '+' : ''}{metric.change}% vs {t.lastWeek}
             </div>
           </Card>
         ))}
@@ -385,7 +344,7 @@ export function PerformancePage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left text-xs font-bold text-slate-400 uppercase py-3">{language === 'zh' ? '活动名称' : 'Activity'}</th>
+                  <th className="text-left text-xs font-bold text-slate-400 uppercase py-3">{t.activity}</th>
                   <th className="text-right text-xs font-bold text-slate-400 uppercase py-3">{t.reach}</th>
                   <th className="text-right text-xs font-bold text-slate-400 uppercase py-3">{t.response}</th>
                   <th className="text-right text-xs font-bold text-slate-400 uppercase py-3">{t.conversion}</th>
@@ -408,7 +367,7 @@ export function PerformancePage() {
                       </Badge>
                     </td>
                     <td className="py-4 text-right">
-                      <Button variant="ghost" size="sm" className="text-indigo-600" onClick={() => alert(language === 'zh' ? '活动详情功能开发中' : 'Activity detail coming soon')}>
+                      <Button variant="ghost" size="sm" className="text-indigo-600" onClick={() => alert(t.activityDetailComingSoon)}>
                         <ArrowUpRight className="w-4 h-4" />
                       </Button>
                     </td>

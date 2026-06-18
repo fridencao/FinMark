@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowRight, Network, MessageSquare, Save, Loader2, ShieldCheck, BotMessageSquare, Lock, BarChart3 } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { useCopilotStore } from '@/stores/copilot';
+import { translations } from '@/i18n';
 import { GoalInputSection } from '@/components/copilot/GoalInputSection';
 import { QuickScenariosSection } from '@/components/copilot/QuickScenariosSection';
 import { WorkflowSection } from '@/components/copilot/WorkflowSection';
@@ -19,40 +20,15 @@ export default function CopilotPage() {
   const [showRMChat, setShowRMChat] = useState(false);
   const [showABTest, setShowABTest] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const t = language === 'zh' ? {
-    goalQuestion: '您想要达成什么营销目标？',
-    goalSubtitle: '输入您的营销目标，AI将为您自动生成完整的营销方案',
-    proFeaturesTitle: '专业功能',
-    auditTrail: '审计追踪',
-    auditTrailDesc: '完整的操作记录，满足金融合规要求',
-    rmCopilot: 'RM Copilot',
-    rmCopilotDesc: 'AI助手辅助客户经理进行话术对练',
-    privacyComputing: '隐私计算',
-    privacyComputingDesc: '数据不出网，保障客户隐私安全',
-    kycRisk: 'KYC风控',
-    kycRiskDesc: '智能识别客户风险等级，精准匹配产品',
-    saveDraft: '保存草稿',
-    strategyCanvas: '策略画布 (A/B测试)',
-    rmCopilotBtn: 'RM Copilot 话术对练',
-    launchCampaign: '执行营销',
-  } : {
-    goalQuestion: 'What marketing goal do you want to achieve?',
-    goalSubtitle: 'Enter your marketing goal, AI will generate a complete marketing plan',
-    proFeaturesTitle: 'Professional Features',
-    auditTrail: 'Audit Trail',
-    auditTrailDesc: 'Complete operation records for financial compliance',
-    rmCopilot: 'RM Copilot',
-    rmCopilotDesc: 'AI assistant for role-play training',
-    privacyComputing: 'Privacy Computing',
-    privacyComputingDesc: 'Data stays local, protecting customer privacy',
-    kycRisk: 'KYC Risk',
-    kycRiskDesc: 'Intelligent risk assessment and product matching',
-    saveDraft: 'Save Draft',
-    strategyCanvas: 'Strategy Canvas (A/B Test)',
-    rmCopilotBtn: 'RM Copilot Roleplay',
-    launchCampaign: 'Launch Campaign',
-  };
+  useEffect(() => {
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, []);
+
+  const t = translations[language].copilotPage;
 
   const handleStopOrchestration = () => {
     stopOrchestration();
@@ -144,7 +120,7 @@ export default function CopilotPage() {
                 if (masterResult) {
                   localStorage.setItem('copilot-draft', JSON.stringify({ goal: masterResult, savedAt: new Date().toISOString() }));
                   setDraftSaved(true);
-                  setTimeout(() => setDraftSaved(false), 2000);
+                  draftTimerRef.current = setTimeout(() => setDraftSaved(false), 2000);
                 }
               }}
             >

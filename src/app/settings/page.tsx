@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Ed
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, createUser, updateUser, deleteUser, getRoles, getPermissions, createRole, updateRole, deleteRole, type User, type Role, type Permission } from '@/services/user';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -147,53 +148,7 @@ export function SettingsPage() {
 
   const isRoleMutating = createRoleMutation.isPending || updateRoleMutation.isPending || deleteRoleMutation.isPending;
 
-  const t = language === 'zh' ? {
-    modelConfig: '模型配置',
-    systemIntegration: '系统集成',
-    userManagement: '用户管理',
-    permission: '权限管理',
-    notification: '通知设置',
-    systemInfo: '系统信息',
-    addModel: '添加模型',
-    test: '测试',
-    edit: '编辑',
-    delete: '删除',
-    connect: '连接',
-    disconnect: '断开',
-    addUser: '添加用户',
-    import: '批量导入',
-    enabled: '已启用',
-    disabled: '已禁用',
-    connected: '已连接',
-    disconnected: '未连接',
-    error: '错误',
-    lastSync: '最后同步',
-    save: '保存',
-    cancel: '取消',
-  } : {
-    modelConfig: 'Model Config',
-    systemIntegration: 'Integration',
-    userManagement: 'User Management',
-    permission: 'Permissions',
-    notification: 'Notifications',
-    systemInfo: 'System Info',
-    addModel: 'Add Model',
-    test: 'Test',
-    edit: 'Edit',
-    delete: 'Delete',
-    connect: 'Connect',
-    disconnect: 'Disconnect',
-    addUser: 'Add User',
-    import: 'Import',
-    enabled: 'Enabled',
-    disabled: 'Disabled',
-    connected: 'Connected',
-    disconnected: 'Disconnected',
-    error: 'Error',
-    lastSync: 'Last Sync',
-    save: 'Save',
-    cancel: 'Cancel',
-  };
+  const t = translations[language].settingsPage;
 
   const getStatusBadge = (status: string) => {
     switch (status) {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Calendar, FileText, BarChart3, PieChart, TrendingUp, Filter, Search, Eye, Share, Printer, Mail, Edit3, FileJson, FileSpreadsheet, FileType } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 import { getReports, downloadReport, type Report } from '@/services/reports';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,63 +53,7 @@ export function ReportCenterPage() {
   });
   const recentReports: Report[] = reportsData?.data ?? [];
 
-  const t = language === 'zh' ? {
-    title: '报表中心',
-    subtitle: '查看和管理营销效果报告',
-    create: '创建报告',
-    download: '下载',
-    view: '查看',
-    share: '分享',
-    schedule: '定时报告',
-    reports: '报告列表',
-    scheduled: '定时任务',
-    templates: '报告模板',
-    all: '全部',
-    summary: '汇总',
-    scenario: '场景',
-    channel: '渠道',
-    customer: '客群',
-    name: '报告名称',
-    type: '类型',
-    date: '日期',
-    size: '大小',
-    status: '状态',
-    completed: '已完成',
-    generating: '生成中',
-    frequency: '频率',
-    nextRun: '下次运行',
-    recipients: '接收人',
-    searchPlaceholder: '搜索报告...',
-    noReports: '暂无报告',
-  } : {
-    title: 'Report Center',
-    subtitle: 'View and manage marketing reports',
-    create: 'Create Report',
-    download: 'Download',
-    view: 'View',
-    share: 'Share',
-    schedule: 'Scheduled Reports',
-    reports: 'Reports',
-    scheduled: 'Scheduled',
-    templates: 'Templates',
-    all: 'All',
-    summary: 'Summary',
-    scenario: 'Scenario',
-    channel: 'Channel',
-    customer: 'Customer',
-    name: 'Name',
-    type: 'Type',
-    date: 'Date',
-    size: 'Size',
-    status: 'Status',
-    completed: 'Completed',
-    generating: 'Generating',
-    frequency: 'Frequency',
-    nextRun: 'Next Run',
-    recipients: 'Recipients',
-    searchPlaceholder: 'Search reports...',
-    noReports: 'No reports',
-  };
+  const t = translations[language].reportPage;
 
   const filteredReports = recentReports.filter(r => {
     const matchType = reportType === 'all' || r.type === reportType;
@@ -412,26 +357,26 @@ export function ReportCenterPage() {
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{language === 'zh' ? '分享下载链接' : 'Share Download Link'}</DialogTitle>
-            <DialogDescription>
-              {selectedReport?.name} - {language === 'zh' ? '复制下载链接到剪贴板' : 'Copy download link to clipboard'}
-            </DialogDescription>
+      <DialogTitle>{t.shareLink}</DialogTitle>
+          <DialogDescription>
+            {selectedReport?.name} - {t.shareDownloadLink}
+          </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
               <Share className="w-5 h-5 text-slate-400" />
               <div className="text-sm text-slate-600">
-                {language === 'zh' ? '点击复制按钮将下载链接复制到剪贴板' : 'Click copy to copy the download link to clipboard'}
+                {t.clickToCopy}
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowShareDialog(false)}>
-              {language === 'zh' ? '取消' : 'Cancel'}
+              {t.cancel}
             </Button>
             <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleShare}>
               <Share className="w-4 h-4 mr-2" />
-              {language === 'zh' ? '复制链接' : 'Copy Link'}
+              {t.copyLink}
             </Button>
           </DialogFooter>
         </DialogContent>
