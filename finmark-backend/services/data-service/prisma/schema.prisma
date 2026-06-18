@@ -373,6 +373,21 @@ model ModelCallLog {
   @@map("model_call_logs")
 }
 
+model AgentConfig {
+  id         String   @id @default(uuid())
+  agentType  String   @unique
+  name       String
+  prompt     String
+  modelId    String?
+  temperature Float   @default(0.7)
+  maxTokens  Int      @default(4096)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("agent_configs")
+}
+
 enum UserRole {
   admin
   manager

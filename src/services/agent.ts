@@ -63,3 +63,22 @@ export const chatWithCustomer = (message: string, history: any[], context?: any)
   api.post('/agents/copilot/chat', { message, history, context });
 
 export const getAgentStatus = () => api.get('/agents/status');
+
+export interface AgentConfig {
+  id: string;
+  agentType: string;
+  name: string;
+  prompt: string;
+  modelId?: string;
+  temperature: number;
+  maxTokens: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getAgentConfigs = () => api.get('/agents/configs');
+export const getAgentConfig = (agentType: string) => api.get(`/agents/configs/${agentType}`);
+export const updateAgentConfig = (agentType: string, data: Partial<AgentConfig>) =>
+  api.put(`/agents/configs/${agentType}`, data);
+export const toggleAgent = (agentType: string) => api.post(`/agents/configs/${agentType}/toggle`);
