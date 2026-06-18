@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Calendar, FileText, BarChart3, PieChart, TrendingUp, Filter, Search, Eye, Share, Printer, Mail, Edit3 } from 'lucide-react';
+import { ArrowLeft, Download, Calendar, FileText, BarChart3, PieChart, TrendingUp, Filter, Search, Eye, Share, Printer, Mail, Edit3, FileJson, FileSpreadsheet, FileType } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
+import { getReports, downloadReport, type Report } from '@/services/reports';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const reportTypes = [
   { id: 'summary', name: '汇总报告', description: '整体营销效果汇总', icon: 'BarChart3' },
   { id: 'scenario', name: '场景报告', description: '各场景效果分析', icon: 'FileText' },
   { id: 'channel', name: '渠道报告', description: '各渠道触达分析', icon: 'PieChart' },
   { id: 'customer', name: '客群报告', description: '客户响应分析', icon: 'TrendingUp' },
-];
-
-const recentReports = [
-  { id: 'r001', name: '2024年1月营销效果汇总', type: 'summary', date: '2024-01-31', size: '2.4MB', status: 'completed' },
-  { id: 'r002', name: '流失挽回场景月度报告', type: 'scenario', date: '2024-01-28', size: '1.8MB', status: 'completed' },
-  { id: 'r003', name: '渠道触达效率分析', type: 'channel', date: '2024-01-25', size: '1.2MB', status: 'completed' },
-  { id: 'r004', name: 'VIP客户响应分析', type: 'customer', date: '2024-01-20', size: '3.1MB', status: 'completed' },
-  { id: 'r005', name: 'Q1营销效果预测', type: 'summary', date: '2024-01-15', size: '1.5MB', status: 'generating' },
 ];
 
 const scheduledReports = [
@@ -37,6 +40,17 @@ export function ReportCenterPage() {
   const [activeTab, setActiveTab] = useState('reports');
   const [reportType, setReportType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
+  const [emailRecipients, setEmailRecipients] = useState('');
+
+  const { data: reportsData, isLoading } = useQuery({
+    queryKey: ['reports'],
+    queryFn: () => getReports(),
+  });
+  const recentReports: Report[] = reportsData?.data ?? [];
 
   const t = language === 'zh' ? {
     title: '报表中心',
@@ -101,6 +115,36 @@ export function ReportCenterPage() {
     const matchSearch = r.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchType && matchSearch;
   });
+
+  const handleExport = async () => {
+    if (!selectedReport) return;
+    try {
+      const blob = await downloadReport(selectedReport.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${selectedReport.name}.${exportFormat === 'csv' ? 'csv' : exportFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setShowExportDialog(false);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!selectedReport) return;
+    const downloadUrl = `${window.location.origin}/api/reports/${selectedReport.id}/download`;
+    try {
+      await navigator.clipboard.writeText(downloadUrl);
+      alert(language === 'zh' ? '下载链接已复制到剪贴板' : 'Download link copied to clipboard');
+      setShowShareDialog(false);
+    } catch {
+      prompt(language === 'zh' ? '请手动复制链接' : 'Copy this link', downloadUrl);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -188,38 +232,52 @@ export function ReportCenterPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredReports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="font-medium">{report.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {report.type === 'summary' ? t.summary : 
-                         report.type === 'scenario' ? t.scenario :
-                         report.type === 'channel' ? t.channel : t.customer}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{report.date}</TableCell>
-                    <TableCell>{report.size}</TableCell>
-                    <TableCell>
-                      <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                        {report.status === 'completed' ? t.completed : t.generating}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Share className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-slate-400">
+                      {language === 'zh' ? '加载中...' : 'Loading...'}
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredReports.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-slate-400">
+                      {t.noReports}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredReports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className="font-medium">{report.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {report.type === 'summary' ? t.summary :
+                           report.type === 'scenario' ? t.scenario :
+                           report.type === 'channel' ? t.channel : t.customer}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{report.date ?? report.createdAt}</TableCell>
+                      <TableCell>{report.size ?? '--'}</TableCell>
+                      <TableCell>
+                        <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
+                          {report.status === 'completed' ? t.completed : t.generating}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedReport(report)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setSelectedReport(report); setShowExportDialog(true); }}>
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setSelectedReport(report); setShowShareDialog(true); }}>
+                            <Share className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </Card>
@@ -282,6 +340,102 @@ export function ReportCenterPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>导出报告</DialogTitle>
+            <DialogDescription>
+              {selectedReport?.name} - 选择导出格式
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  exportFormat === 'pdf'
+                    ? 'border-indigo-600 bg-indigo-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+                onClick={() => setExportFormat('pdf')}
+              >
+                <FileType className="w-8 h-8 mx-auto mb-2 text-red-600" />
+                <div className="text-sm font-medium">PDF 格式</div>
+                <div className="text-xs text-slate-500">适合打印和分享</div>
+              </button>
+              <button
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  exportFormat === 'excel'
+                    ? 'border-emerald-600 bg-emerald-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+                onClick={() => setExportFormat('excel')}
+              >
+                <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
+                <div className="text-sm font-medium">Excel 格式</div>
+                <div className="text-xs text-slate-500">适合数据分析</div>
+              </button>
+              <button
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  exportFormat === 'csv'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+                onClick={() => setExportFormat('csv')}
+              >
+                <FileJson className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                <div className="text-sm font-medium">CSV 格式</div>
+                <div className="text-xs text-slate-500">适合导入系统</div>
+              </button>
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+              <Printer className="w-5 h-5 text-slate-400" />
+              <div className="text-sm text-slate-600">
+                导出后将自动下载到本地，可在下载文件夹查看
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+              取消
+            </Button>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              导出为 {exportFormat.toUpperCase()}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{language === 'zh' ? '分享下载链接' : 'Share Download Link'}</DialogTitle>
+            <DialogDescription>
+              {selectedReport?.name} - {language === 'zh' ? '复制下载链接到剪贴板' : 'Copy download link to clipboard'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+              <Share className="w-5 h-5 text-slate-400" />
+              <div className="text-sm text-slate-600">
+                {language === 'zh' ? '点击复制按钮将下载链接复制到剪贴板' : 'Click copy to copy the download link to clipboard'}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
+              {language === 'zh' ? '取消' : 'Cancel'}
+            </Button>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleShare}>
+              <Share className="w-4 h-4 mr-2" />
+              {language === 'zh' ? '复制链接' : 'Copy Link'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

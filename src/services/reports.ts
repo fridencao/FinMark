@@ -10,6 +10,10 @@ export interface Report {
   config: any;
   generatedAt?: string;
   createdAt: string;
+  /** Display field — maps to createdAt for table rendering */
+  date?: string;
+  /** Display field — not populated by API, shown as '--' */
+  size?: string;
 }
 
 export async function getReports(type?: string, status?: string, page = 1, limit = 20) {
@@ -35,7 +39,7 @@ export async function generateReport(data: {
   return api.post('/reports/generate', data);
 }
 
-export async function downloadReport(id: string) {
+export async function downloadReport(id: string): Promise<Blob> {
   return api.get(`/reports/${id}/download`, { responseType: 'blob' });
 }
 
