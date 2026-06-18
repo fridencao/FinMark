@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InsightReport, isInsightMarkdown } from './InsightReport';
 import api from '@/services/api';
+import { translations } from '@/i18n';
 
 interface Message {
   role: 'user' | 'ai';
@@ -38,21 +46,7 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const t = language === 'zh' ? {
-    title: 'RM Copilot 话术对练',
-    placeholder: '输入您的问题或场景描述...',
-    send: '发送',
-    suggestions: '推荐问题',
-    thinking: '思考中...',
-    fallback: '抱歉，服务暂时不可用，请稍后重试。',
-  } : {
-    title: 'RM Copilot Roleplay',
-    placeholder: 'Enter your question or scenario...',
-    send: 'Send',
-    suggestions: 'Suggestions',
-    thinking: 'Thinking...',
-    fallback: 'Sorry, service is temporarily unavailable.',
-  };
+  const t = translations[language].rmChat;
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -63,8 +57,11 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
     setIsLoading(true);
 
     try {
-      const data = await api.post('/agents/insight', { goal: userContent, lang: language }) as { data?: string };
-      const aiContent = data?.data || t.fallback;
+      const response = await api.post('/agents/insight', { goal: userContent, lang: language }) as {
+        success: boolean;
+        data?: { content?: string };
+      };
+      const aiContent = response?.data?.content || t.fallback;
       setMessages(prev => [...prev, { role: 'ai', content: aiContent }]);
     } catch {
       setMessages(prev => [...prev, { role: 'ai', content: t.fallback }]);
@@ -74,45 +71,52 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl h-[600px] p-0 gap-0 flex flex-col">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="max-w-md">
+        <SheetHeader>
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center">
               <MessageCircle className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h3 className="font-bold text-base">{t.title}</h3>
+              <SheetTitle>{t.title}</SheetTitle>
               <p className="text-[11px] text-slate-400">
-                {language === 'zh' ? 'AI助手辅助客户经理进行话术对练' : 'AI assistant for RM role-play training'}
+                {t.subtitle}
               </p>
             </div>
           </div>
-        </div>
+        </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-4">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                <div className={msg.role === 'user'
-                  ? 'bg-indigo-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm max-w-[80%]'
-                  : 'bg-slate-100 text-slate-800 px-4 py-2 rounded-2xl rounded-tl-sm max-w-[80%]'
-                }>
-                  <p className="text-sm">{msg.content}</p>
+        <SheetBody className="p-0">
+          <div className="h-full overflow-y-auto p-4">
+            <div className="space-y-4">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                  {msg.role === 'user' ? (
+                    <div className="bg-indigo-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm max-w-[80%]">
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  ) : isInsightMarkdown(msg.content) ? (
+                    <InsightReport content={msg.content} className="max-w-[95%]" />
+                  ) : (
+                    <div className="bg-slate-100 text-slate-800 px-4 py-2 rounded-2xl rounded-tl-sm max-w-[80%]">
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-slate-100 text-slate-500 px-4 py-2 rounded-2xl rounded-tl-sm">
-                  <p className="text-sm">{t.thinking}</p>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-slate-100 text-slate-500 px-4 py-2 rounded-2xl rounded-tl-sm">
+                    <p className="text-sm">{t.thinking}</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </SheetBody>
 
-        <div className="p-4 border-t border-slate-100 space-y-3">
+        <div className="px-4 py-4 border-t border-slate-100 space-y-3 shrink-0">
           <div className="flex gap-2 flex-wrap">
             <span className="text-xs text-slate-400 font-medium">{t.suggestions}:</span>
             {suggestions(language).slice(0, 2).map((s, idx) => (
@@ -142,7 +146,7 @@ export function RMChatDialog({ open, onOpenChange }: RMChatDialogProps) {
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

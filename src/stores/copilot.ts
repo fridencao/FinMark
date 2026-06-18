@@ -126,6 +126,20 @@ async function executeWorkflow(
     streamingContent: {},
   });
 
+  // Load custom prompts from localStorage and include non-empty ones
+  let customPrompts: Record<string, string> | undefined;
+  try {
+    const raw = localStorage.getItem('finmark-agent-prompts');
+    if (raw) {
+      const all = JSON.parse(raw);
+      const nonEmpty: Record<string, string> = {};
+      for (const [k, v] of Object.entries(all)) {
+        if (v && typeof v === 'string' && v.trim()) nonEmpty[k] = v.trim();
+      }
+      if (Object.keys(nonEmpty).length > 0) customPrompts = nonEmpty;
+    }
+  } catch { /* ignore invalid localStorage */ }
+
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
   const agentServiceUrl = `${apiBase}/agents/master/stream`;
   const token = localStorage.getItem('auth-token');
@@ -137,7 +151,7 @@ async function executeWorkflow(
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ goal, budget, channels, lang }),
+      body: JSON.stringify({ goal, budget, channels, lang, ...(customPrompts ? { prompts: customPrompts } : {}) }),
       signal,
     });
 

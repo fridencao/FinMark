@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Zap, Factory, Brain, BarChart3, Users, ShieldCheck, Settings } from 'lucide-react';
+import { Zap, Factory, Brain, BarChart3, Users, ShieldCheck, Settings, Activity, FlaskConical, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app';
+import { translations } from '@/i18n';
 
 const navItems = [
   { path: '/copilot', label: '智能营销助手', icon: Zap },
@@ -10,26 +11,19 @@ const navItems = [
   { path: '/brain', label: '策略原子库', icon: Brain },
   { path: '/performance', label: '效果仪表盘', icon: BarChart3 },
   { path: '/expert', label: '专家模式', icon: Users },
+  { path: '/ab-test', label: 'A/B 测试', icon: FlaskConical },
+  { path: '/task-schedule', label: '任务调度', icon: Clock },
 ];
 
 const adminItems = [
   { path: '/agents', label: '智能体管理', icon: ShieldCheck },
+  { path: '/monitoring', label: '模型监控', icon: Activity },
   { path: '/settings', label: '系统设置', icon: Settings },
 ];
 
 export function AppSidebar() {
   const { language } = useAppStore();
-  const t = language === 'zh' ? {
-    interactionMode: '交互模式',
-    management: '系统管理',
-    systemStatus: '系统状态',
-    systemStatusDesc: '所有服务运行正常'
-  } : {
-    interactionMode: 'Interaction',
-    management: 'Management',
-    systemStatus: 'System Status',
-    systemStatusDesc: 'All services running normally'
-  };
+  const t = translations[language].sidebar;
 
   return (
     <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-screen">
@@ -40,9 +34,9 @@ export function AppSidebar() {
           </div>
           <h1 className="font-bold text-xl tracking-tight text-slate-900 dark:text-slate-100">FinMark AI</h1>
         </div>
-        <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-          {language === 'zh' ? '金融智能营销平台' : 'Financial AI Marketing'}
-        </p>
+          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+            {t.platformSubtitle}
+          </p>
       </div>
 
       <nav className="flex-1 p-4 space-y-6">

@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { translations } from '@/i18n';
 
 interface AgentState {
   type: AgentType;
@@ -29,19 +30,7 @@ export function WorkflowSection() {
   const { language } = useAppStore();
   const { isOrchestrating, currentStep, agentResults, stopOrchestration } = useCopilotStore();
   
-  const t = language === 'zh' ? {
-    orchestrating: '多智能体协同编排中...',
-    activating: '正在按序激活专家智能体执行子任务',
-    planGenerated: '方案已生成',
-    stop: '停止编排',
-    completed: '完成'
-  } : {
-    orchestrating: 'Multi-Agent Orchestrating...',
-    activating: 'Activating expert agents to execute sub-tasks',
-    planGenerated: 'Plan Generated',
-    stop: 'Stop',
-    completed: 'Completed'
-  };
+  const t = translations[language].workflowSection;
 
   const handleStop = () => {
     stopOrchestration();
@@ -62,7 +51,7 @@ export function WorkflowSection() {
               {isOrchestrating ? t.orchestrating : t.planGenerated}
             </h3>
             <p className="text-sm text-slate-500">
-              {isOrchestrating ? t.activating : language === 'zh' ? '可以开始执行或查看详情' : 'Ready to execute or view details'}
+              {isOrchestrating ? t.activating : t.readyToExecute}
             </p>
           </div>
         </div>

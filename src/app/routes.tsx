@@ -12,6 +12,10 @@ import AlarmManagementPage from '@/app/performance/alarm/page';
 import { ExpertPage } from '@/app/expert/page';
 import { AgentsPage } from '@/app/agents/page';
 import { SettingsPage } from '@/app/settings/page';
+import { MonitoringPage } from '@/app/monitoring/page';
+import { CompliancePage } from '@/app/compliance/page';
+import { TaskSchedulePage } from '@/app/task-schedule/page';
+import AbTestPage from '@/app/ab-test/page';
 import NotFoundPage from '@/app/404/page';
 import LoginPage from '@/app/login/page';
 
@@ -74,6 +78,22 @@ const router = createBrowserRouter([
       {
         path: 'agents',
         element: <AgentsPage />,
+      },
+      {
+        path: 'monitoring',
+        element: <MonitoringPage />,
+      },
+      {
+        path: 'compliance',
+        element: <CompliancePage />,
+      },
+      {
+        path: 'ab-test',
+        element: <AbTestPage />,
+      },
+      {
+        path: 'task-schedule',
+        element: <TaskSchedulePage />,
       },
       {
         path: 'settings',

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, Copy, Eye, FileText, Save, Upload, Download } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, Trash2, Edit2, Copy, Eye, FileText, Save, Upload, Download, FileSpreadsheet, FileJson } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -22,6 +23,8 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/common/EmptyState';
+import Papa from 'papaparse';
+import { saveAs } from 'file-saver';
 
 interface Template {
   id: string;
@@ -96,6 +99,8 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
   const [editingTemplate, setEditingTemplate] = useState<Partial<Template>>({});
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreateTemplate = () => {
     setEditingTemplate({
@@ -177,17 +182,35 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
     onTemplatesChange?.(newTemplates);
   };
 
-  const handleExport = () => {
+  const handleExportJSON = () => {
     const dataStr = JSON.stringify(templates, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'templates.json';
+    link.download = `templates_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExportCSV = () => {
+    const csvData = templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      type: t.type,
+      category: t.category,
+      content: t.content,
+      variables: t.variables.join(', '),
+      description: t.description,
+      isSystem: t.isSystem ? 'Yes' : 'No',
+    }));
+
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `templates_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -197,11 +220,44 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
           const newTemplates = [...templates, ...imported];
           setTemplates(newTemplates);
           onTemplatesChange?.(newTemplates);
+          setImportError(null);
         } catch (err) {
+          setImportError('导入失败：文件格式不正确');
           console.error('Failed to import templates:', err);
         }
       };
       reader.readAsText(file);
+    }
+  };
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      Papa.parse(file, {
+        complete: (results) => {
+          try {
+            const imported: Template[] = results.data.map((row: any, index: number) => ({
+              id: row.id || `csv_${index}_${Date.now()}`,
+              name: row.name || `Template ${index}`,
+              type: (row.type as Template['type']) || 'sms',
+              category: row.category || '其他',
+              content: row.content || '',
+              variables: row.variables ? row.variables.split(',').map((v: string) => v.trim()) : [],
+              description: row.description || '',
+              isSystem: row.isSystem === 'Yes',
+            }));
+            const newTemplates = [...templates, ...imported];
+            setTemplates(newTemplates);
+            onTemplatesChange?.(newTemplates);
+            setImportError(null);
+          } catch (err) {
+            setImportError('导入失败：CSV 格式解析错误');
+            console.error('Failed to import CSV:', err);
+          }
+        },
+        header: true,
+        skipEmptyLines: true,
+      });
     }
   };
 
@@ -236,19 +292,66 @@ export function TemplateManager({ onTemplatesChange }: TemplateManagerProps) {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-slate-700">模板列表</h3>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handleExport}>
-                <Download className="w-4 h-4" />
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => document.getElementById('template-import-input')?.click()}>
-                <Upload className="w-4 h-4" />
-              </Button>
-              <input 
-                id="template-import-input"
-                type="file" 
-                accept=".json" 
-                onChange={handleImport} 
-                className="hidden" 
-              />
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>导出模板</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 py-4">
+                    <Button variant="outline" className="w-full justify-start" onClick={handleExportJSON}>
+                      <FileJson className="w-4 h-4 mr-2" />
+                      导出为 JSON (适合备份)
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" onClick={handleExportCSV}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      导出为 CSV (适合 Excel)
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <Upload className="w-4 h-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>导入模板</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 py-4">
+                    <div>
+                      <Label>从 JSON 导入</Label>
+                      <Input
+                        type="file"
+                        accept=".json"
+                        onChange={handleImportJSON}
+                        ref={fileInputRef}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label>从 CSV 导入</Label>
+                      <Input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleImportCSV}
+                        className="mt-2"
+                      />
+                    </div>
+                    {importError && (
+                      <p className="text-sm text-red-500">{importError}</p>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <Button size="sm" onClick={handleCreateTemplate}>
                 <Plus className="w-4 h-4" />
               </Button>

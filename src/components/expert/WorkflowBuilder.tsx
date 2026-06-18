@@ -1,5 +1,19 @@
-import React, { useState, useCallback } from 'react';
-import { Plus, Trash2, GripVertical, Play, Save, Zap, Users, Mail, Phone, MessageSquare } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Plus, Trash2, Play, Save, Zap, Settings } from 'lucide-react';
+import {
+  ReactFlow,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+  Edge,
+  Node,
+  MarkerType,
+  Panel,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,44 +28,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/common/EmptyState';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getWorkflows,
+  createWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+  executeWorkflow,
+  Workflow as WorkflowType,
+} from '@/services/expert';
 
-interface WorkflowNode {
-  id: string;
-  type: 'trigger' | 'condition' | 'action' | 'delay';
-  name: string;
-  config: Record<string, any>;
-  position: { x: number; y: number };
-}
-
-interface WorkflowEdge {
-  id: string;
-  source: string;
-  target: string;
-}
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string;
-  nodes: WorkflowNode[];
-  edges: WorkflowEdge[];
-  enabled: boolean;
-}
-
-const nodeTypes = [
-  { type: 'trigger', label: '触发器', icon: Zap, color: 'bg-blue-500' },
-  { type: 'condition', label: '条件判断', icon: Users, color: 'bg-purple-500' },
-  { type: 'action', label: '执行动作', icon: Mail, color: 'bg-emerald-500' },
-  { type: 'delay', label: '延时等待', icon: Play, color: 'bg-orange-500' },
-];
-
-const actionTypes = [
-  { type: 'sms', label: '发送短信', icon: MessageSquare },
-  { type: 'call', label: '电话外呼', icon: Phone },
-  { type: 'push', label: 'APP 推送', icon: Zap },
-  { type: 'email', label: '发送邮件', icon: Mail },
-  { type: 'wechat', label: '微信消息', icon: MessageSquare },
+const nodeTypesConfig = [
+  { type: 'trigger', label: '触发器', icon: '⚡', color: '#3B82F6', description: '工作流触发条件' },
+  { type: 'condition', label: '条件判断', icon: '🔀', color: '#8B5CF6', description: '分支逻辑判断' },
+  { type: 'action', label: '执行动作', icon: '🎯', color: '#10B981', description: '执行具体操作' },
+  { type: 'delay', label: '延时等待', icon: '⏳', color: '#F59E0B', description: '等待指定时间' },
 ];
 
 const triggerTypes = [
@@ -62,109 +61,264 @@ const triggerTypes = [
   { type: 'schedule', label: '定时触发' },
 ];
 
+const actionTypes = [
+  { type: 'sms', label: '发送短信' },
+  { type: 'call', label: '电话外呼' },
+  { type: 'push', label: 'APP 推送' },
+  { type: 'email', label: '发送邮件' },
+  { type: 'wechat', label: '微信消息' },
+];
+
+interface CustomNodeData {
+  label: string;
+  type: string;
+  config?: Record<string, any>;
+  onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
+}
+
+function CustomNode({ id, data }: { id: string; data: CustomNodeData }) {
+  const nodeType = nodeTypesConfig.find((t) => t.type === data.type);
+  
+  return (
+    <div className="bg-white rounded-lg shadow-lg border-2 border-slate-200 hover:border-indigo-400 transition-colors min-w-[200px]">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-lg"
+          style={{ backgroundColor: nodeType?.color || '#64748B' }}
+        >
+          {nodeType?.icon}
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-sm text-slate-700">{data.label}</div>
+          <div className="text-xs text-slate-400">{nodeType?.label}</div>
+        </div>
+      </div>
+      {data.config && (
+        <div className="px-3 py-2 bg-slate-50 text-xs text-slate-500">
+          {Object.entries(data.config).slice(0, 2).map(([key, value]) => (
+            <div key={key} className="truncate">
+              {key}: {String(value)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkflowBuilder() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
-  const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowType | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showNodeDialog, setShowNodeDialog] = useState(false);
+  const [nodePosition, setNodePosition] = useState<{ x: number; y: number } | null>(null);
+
+  // React Flow state
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Fetch workflows
+  const { data: workflowsData } = useQuery({
+    queryKey: ['workflows'],
+    queryFn: () => getWorkflows(),
+  });
+
+  const workflows = workflowsData?.data || [];
+
+  // Mutations
+  const queryClient = useQueryClient();
+  
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; description: string }) => createWorkflow(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<WorkflowType> }) =>
+      updateWorkflow(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteWorkflow(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      setSelectedWorkflow(null);
+      setNodes([]);
+      setEdges([]);
+    },
+  });
+
+  const executeMutation = useMutation({
+    mutationFn: (id: string) => executeWorkflow(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+    },
+  });
 
   const handleCreateWorkflow = () => {
-    const newWorkflow: Workflow = {
-      id: `workflow_${Date.now()}`,
-      name: '新工作流',
-      description: '',
-      nodes: [],
-      edges: [],
-      enabled: false,
-    };
-    const newWorkflows = [...workflows, newWorkflow];
-    setWorkflows(newWorkflows);
-    setSelectedWorkflow(newWorkflow);
-    setIsEditing(true);
+    const name = prompt('请输入工作流名称:');
+    if (!name) return;
+    
+    const description = prompt('请输入工作流描述 (可选):') || '';
+    
+    createMutation.mutate(
+      { name, description },
+      {
+        onSuccess: (data) => {
+          const workflow = data.data;
+          setSelectedWorkflow(workflow);
+          loadWorkflowNodes(workflow);
+          setIsEditing(true);
+        },
+      }
+    );
   };
 
-  const handleSelectWorkflow = (workflow: Workflow) => {
+  const loadWorkflowNodes = (workflow: WorkflowType) => {
+    const flowNodes: Node[] = workflow.nodes?.map((node: any) => ({
+      id: node.id,
+      type: 'custom',
+      position: node.position || { x: 0, y: 0 },
+      data: {
+        label: node.name,
+        type: node.type,
+        config: node.config,
+      },
+    })) || [];
+
+    const flowEdges: Edge[] = workflow.edges?.map((edge: any) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      markerEnd: { type: MarkerType.ArrowClosed },
+    })) || [];
+
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  };
+
+  const handleSelectWorkflow = (workflow: WorkflowType) => {
     setSelectedWorkflow(workflow);
-    setSelectedNode(null);
+    loadWorkflowNodes(workflow);
     setIsEditing(false);
   };
 
-  const handleUpdateWorkflow = (updated: Workflow) => {
-    const newWorkflows = workflows.map((w) =>
-      w.id === updated.id ? updated : w
-    );
-    setWorkflows(newWorkflows);
-    setSelectedWorkflow(updated);
-  };
-
-  const handleDeleteWorkflow = (id: string) => {
-    const newWorkflows = workflows.filter((w) => w.id !== id);
-    setWorkflows(newWorkflows);
-    setSelectedWorkflow(null);
-  };
-
-  const handleAddNode = (nodeType: string) => {
+  const handleSaveWorkflow = () => {
     if (!selectedWorkflow) return;
 
-    const newNode: WorkflowNode = {
-      id: `node_${Date.now()}`,
-      type: nodeType as WorkflowNode['type'],
-      name: `新${nodeTypes.find((t) => t.type === nodeType)?.label || '节点'}`,
-      config: {},
-      position: { x: 100, y: 100 },
-    };
+    const workflowNodes = nodes.map((node) => ({
+      id: node.id,
+      type: node.data?.type || 'action',
+      name: node.data?.label || 'Node',
+      config: node.data?.config || {},
+      position: node.position,
+    }));
 
-    const updated: Workflow = {
-      ...selectedWorkflow,
-      nodes: [...selectedWorkflow.nodes, newNode],
-    };
-    handleUpdateWorkflow(updated);
-    setSelectedNode(newNode);
+    const workflowEdges = edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+    }));
+
+    updateMutation.mutate({
+      id: selectedWorkflow.id,
+      data: {
+        nodes: workflowNodes,
+        edges: workflowEdges,
+      },
+    });
+
+    setIsEditing(false);
   };
 
-  const handleUpdateNode = (nodeId: string, updates: Partial<WorkflowNode>) => {
+  const handleDeleteWorkflow = () => {
     if (!selectedWorkflow) return;
-
-    const updatedNodes = selectedWorkflow.nodes.map((node) =>
-      node.id === nodeId ? { ...node, ...updates } : node
-    );
-
-    const updated: Workflow = {
-      ...selectedWorkflow,
-      nodes: updatedNodes,
-    };
-    handleUpdateWorkflow(updated);
-    if (selectedNode?.id === nodeId) {
-      setSelectedNode({ ...selectedNode, ...updates });
+    if (confirm('确定要删除这个工作流吗？')) {
+      deleteMutation.mutate(selectedWorkflow.id);
     }
   };
 
-  const handleDeleteNode = (nodeId: string) => {
+  const handleExecuteWorkflow = () => {
     if (!selectedWorkflow) return;
+    executeMutation.mutate(selectedWorkflow.id);
+  };
 
-    const updated: Workflow = {
-      ...selectedWorkflow,
-      nodes: selectedWorkflow.nodes.filter((n) => n.id !== nodeId),
-      edges: selectedWorkflow.edges.filter(
-        (e) => e.source !== nodeId && e.target !== nodeId
-      ),
+  const onConnect = useCallback(
+    (params: Connection) => {
+      const newEdge: Edge = {
+        ...params,
+        id: `edge-${params.source}-${params.target}`,
+        markerEnd: { type: MarkerType.ArrowClosed },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
+    [setEdges]
+  );
+
+  const handleAddNode = (nodeType: string, position: { x: number; y: number }) => {
+    const newNode: Node = {
+      id: `node-${Date.now()}`,
+      type: 'custom',
+      position,
+      data: {
+        label: `新${nodeTypesConfig.find((t) => t.type === nodeType)?.label || '节点'}`,
+        type: nodeType,
+        config: {},
+      },
     };
-    handleUpdateWorkflow(updated);
+    setNodes((nds) => [...nds, newNode]);
+    setShowNodeDialog(false);
+  };
+
+  const handleNodeClick = (_: React.MouseEvent, node: Node) => {
+    setSelectedNode(node);
+  };
+
+  const handleUpdateNodeConfig = (config: Record<string, any>) => {
+    if (!selectedNode) return;
+
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNode.id
+          ? {
+              ...node,
+              data: { ...node.data, config },
+            }
+          : node
+      )
+    );
+
+    setSelectedNode((prev) =>
+      prev ? { ...prev, data: { ...prev.data, config } } : null
+    );
+  };
+
+  const handleDeleteNode = () => {
+    if (!selectedNode) return;
+    setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
+    setEdges((eds) =>
+      eds.filter(
+        (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
+      )
+    );
     setSelectedNode(null);
   };
 
-  const getNodeIcon = (type: string) => {
-    const nodeType = nodeTypes.find((t) => t.type === type);
-    return nodeType?.icon || Zap;
-  };
-
-  const getNodeColor = (type: string) => {
-    const nodeType = nodeTypes.find((t) => t.type === type);
-    return nodeType?.color || 'bg-slate-500';
-  };
+  const nodeTypes = useMemo(
+    () => ({
+      custom: CustomNode,
+    }),
+    []
+  );
 
   return (
-    <div className="flex gap-6 h-[600px]">
+    <div className="flex gap-6 h-[700px]">
       {/* Left Panel - Workflow List */}
       <div className="w-64 border border-slate-200 rounded-lg flex flex-col">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -175,7 +329,7 @@ export function WorkflowBuilder() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {workflows.map((workflow) => (
+          {workflows.map((workflow: WorkflowType) => (
             <button
               key={workflow.id}
               onClick={() => handleSelectWorkflow(workflow)}
@@ -200,7 +354,10 @@ export function WorkflowBuilder() {
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-xs text-slate-400">
-                  {workflow.nodes.length} 个节点
+                  {workflow.nodes?.length || 0} 个节点
+                </span>
+                <span className="text-xs text-slate-400">
+                  {workflow.edges?.length || 0} 条连接
                 </span>
               </div>
             </button>
@@ -216,7 +373,7 @@ export function WorkflowBuilder() {
         </div>
       </div>
 
-      {/* Center Panel - Canvas */}
+      {/* Center Panel - React Flow Canvas */}
       <div className="flex-1 border border-slate-200 rounded-lg flex flex-col">
         {selectedWorkflow ? (
           <>
@@ -231,14 +388,24 @@ export function WorkflowBuilder() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setIsEditing(!isEditing)}
+                  onClick={handleExecuteWorkflow}
+                  disabled={isEditing}
                 >
+                  <Play className="w-4 h-4 mr-1" />
+                  执行
+                </Button>
+                <Button
+                  size="sm"
+                  variant={isEditing ? 'default' : 'outline'}
+                  onClick={isEditing ? handleSaveWorkflow : () => setIsEditing(true)}
+                >
+                  <Save className="w-4 h-4 mr-1" />
                   {isEditing ? '保存' : '编辑'}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleDeleteWorkflow(selectedWorkflow.id)}
+                  onClick={handleDeleteWorkflow}
                   className="text-red-500"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -246,90 +413,67 @@ export function WorkflowBuilder() {
               </div>
             </div>
 
-            <div className="flex-1 flex">
-              {/* Node Types Toolbar */}
-              {isEditing && (
-                <div className="w-32 border-r border-slate-200 p-4 space-y-2">
-                  <Label className="text-xs font-medium">添加节点</Label>
-                  {nodeTypes.map((nodeType) => (
-                    <button
-                      key={nodeType.type}
-                      onClick={() => handleAddNode(nodeType.type)}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-slate-100 transition-colors text-left"
-                    >
-                      <div className={`w-6 h-6 rounded ${nodeType.color} flex items-center justify-center`}>
-                        <nodeType.icon className="w-3 h-3 text-white" />
-                      </div>
-                      <span className="text-xs text-slate-600">{nodeType.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Canvas Area */}
-              <div className="flex-1 p-4 overflow-auto bg-slate-50">
-                {selectedWorkflow.nodes.length > 0 ? (
-                  <div className="space-y-4">
-                    {selectedWorkflow.nodes.map((node, index) => {
-                      const Icon = getNodeIcon(node.type);
-                      const color = getNodeColor(node.type);
-
-                      return (
-                        <div key={node.id}>
-                          {/* Connection Line */}
-                          {index > 0 && (
-                            <div className="w-0.5 h-8 bg-slate-300 mx-8" />
-                          )}
-
-                          {/* Node */}
-                          <div
-                            className={`flex items-center gap-4 p-4 bg-white rounded-xl border-2 cursor-pointer transition-all ${
-                              selectedNode?.id === node.id
-                                ? 'border-indigo-500 shadow-md'
-                                : 'border-slate-200 hover:border-slate-300'
-                            }`}
-                            onClick={() => setSelectedNode(node)}
-                          >
-                            <GripVertical className="w-4 h-4 text-slate-400" />
-                            <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}>
-                              <Icon className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-slate-700">{node.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {nodeTypes.find((t) => t.type === node.type)?.label}
-                                </Badge>
-                              </div>
-                            </div>
-                            {isEditing && (
+            <div className="flex-1">
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeClick={handleNodeClick}
+                nodeTypes={nodeTypes}
+                fitView
+                snapToGrid
+                snapGrid={[15, 15]}
+                deleteKeyCode={['Backspace', 'Delete']}
+                onNodesDelete={(deleted) => {
+                  deleted.forEach((node) => {
+                    setSelectedNode(null);
+                  });
+                }}
+              >
+                <Controls />
+                <Background variant="dots" gap={15} size={1} />
+                
+                {isEditing && (
+                  <Panel position="top-right" className="bg-white p-4 rounded-lg shadow-lg border border-slate-200">
+                    <Label className="text-xs font-medium mb-2 block">添加节点</Label>
+                    <div className="space-y-2">
+                      {nodeTypesConfig.map((nodeType) => (
+                        <Dialog key={nodeType.type} open={showNodeDialog} onOpenChange={setShowNodeDialog}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full justify-start text-xs"
+                            >
+                              <span className="text-lg mr-2">{nodeType.icon}</span>
+                              {nodeType.label}
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>添加 {nodeType.label}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <p className="text-sm text-slate-500">{nodeType.description}</p>
                               <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteNode(node.id);
+                                onClick={() => {
+                                  const centerX = window.innerWidth / 2 - 100;
+                                  const centerY = window.innerHeight / 2 - 50;
+                                  handleAddNode(nodeType.type, { x: centerX, y: centerY });
                                 }}
-                                className="text-red-500"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                添加到画布中心
                               </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <EmptyState
-                      icon={Zap}
-                      title="暂无节点"
-                      description="从左侧添加节点开始构建工作流"
-                    />
-                  </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      ))}
+                    </div>
+                  </Panel>
                 )}
-              </div>
+              </ReactFlow>
             </div>
           </>
         ) : (
@@ -348,30 +492,40 @@ export function WorkflowBuilder() {
         <div className="w-80 border border-slate-200 rounded-lg p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-700">节点配置</h3>
-            <Badge variant="outline">{nodeTypes.find((t) => t.type === selectedNode.type)?.label}</Badge>
+            <Button size="sm" variant="ghost" onClick={handleDeleteNode}>
+              <Trash2 className="w-4 h-4 text-red-500" />
+            </Button>
           </div>
 
           <div className="space-y-4">
             <div>
               <Label>节点名称</Label>
               <Input
-                value={selectedNode.name}
-                onChange={(e) =>
-                  handleUpdateNode(selectedNode.id, { name: e.target.value })
-                }
+                value={selectedNode.data?.label || ''}
+                onChange={(e) => {
+                  const newLabel = e.target.value;
+                  setNodes((nds) =>
+                    nds.map((node) =>
+                      node.id === selectedNode.id
+                        ? { ...node, data: { ...node.data, label: newLabel } }
+                        : node
+                    )
+                  );
+                  setSelectedNode((prev) =>
+                    prev ? { ...prev, data: { ...prev.data, label: newLabel } } : null
+                  );
+                }}
                 disabled={!isEditing}
               />
             </div>
 
-            {selectedNode.type === 'trigger' && (
+            {selectedNode.data?.type === 'trigger' && (
               <div>
                 <Label>触发类型</Label>
                 <Select
-                  value={selectedNode.config.type || ''}
+                  value={selectedNode.data?.config?.type || ''}
                   onValueChange={(value) =>
-                    handleUpdateNode(selectedNode.id, {
-                      config: { ...selectedNode.config, type: value },
-                    })
+                    handleUpdateNodeConfig({ ...selectedNode.data?.config, type: value })
                   }
                   disabled={!isEditing}
                 >
@@ -389,61 +543,60 @@ export function WorkflowBuilder() {
               </div>
             )}
 
-            {selectedNode.type === 'action' && (
-              <div>
-                <Label>动作类型</Label>
-                <Select
-                  value={selectedNode.config.actionType || ''}
-                  onValueChange={(value) =>
-                    handleUpdateNode(selectedNode.id, {
-                      config: { ...selectedNode.config, actionType: value },
-                    })
-                  }
-                  disabled={!isEditing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择动作类型" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {actionTypes.map((a) => (
-                      <SelectItem key={a.type} value={a.type}>
-                        <div className="flex items-center gap-2">
-                          <a.icon className="w-4 h-4" />
+            {selectedNode.data?.type === 'action' && (
+              <>
+                <div>
+                  <Label>动作类型</Label>
+                  <Select
+                    value={selectedNode.data?.config?.actionType || ''}
+                    onValueChange={(value) =>
+                      handleUpdateNodeConfig({ ...selectedNode.data?.config, actionType: value })
+                    }
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择动作类型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {actionTypes.map((a) => (
+                        <SelectItem key={a.type} value={a.type}>
                           {a.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedNode.data?.config?.actionType && (
+                  <div>
+                    <Label>消息内容</Label>
+                    <Textarea
+                      value={selectedNode.data?.config?.content || ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig({
+                          ...selectedNode.data?.config,
+                          content: e.target.value,
+                        })
+                      }
+                      disabled={!isEditing}
+                      rows={4}
+                      placeholder="输入消息模板内容..."
+                    />
+                  </div>
+                )}
+              </>
             )}
 
-            {selectedNode.type === 'action' && selectedNode.config.actionType && (
-              <div>
-                <Label>消息内容</Label>
-                <Textarea
-                  value={selectedNode.config.content || ''}
-                  onChange={(e) =>
-                    handleUpdateNode(selectedNode.id, {
-                      config: { ...selectedNode.config, content: e.target.value },
-                    })
-                  }
-                  disabled={!isEditing}
-                  rows={4}
-                  placeholder="输入消息模板内容..."
-                />
-              </div>
-            )}
-
-            {selectedNode.type === 'delay' && (
+            {selectedNode.data?.type === 'delay' && (
               <div>
                 <Label>等待时长 (小时)</Label>
                 <Input
                   type="number"
-                  value={selectedNode.config.duration || ''}
+                  value={selectedNode.data?.config?.duration || ''}
                   onChange={(e) =>
-                    handleUpdateNode(selectedNode.id, {
-                      config: { ...selectedNode.config, duration: e.target.value },
+                    handleUpdateNodeConfig({
+                      ...selectedNode.data?.config,
+                      duration: e.target.value,
                     })
                   }
                   disabled={!isEditing}
@@ -451,14 +604,15 @@ export function WorkflowBuilder() {
               </div>
             )}
 
-            {selectedNode.type === 'condition' && (
+            {selectedNode.data?.type === 'condition' && (
               <div>
                 <Label>条件表达式</Label>
                 <Textarea
-                  value={selectedNode.config.expression || ''}
+                  value={selectedNode.data?.config?.expression || ''}
                   onChange={(e) =>
-                    handleUpdateNode(selectedNode.id, {
-                      config: { ...selectedNode.config, expression: e.target.value },
+                    handleUpdateNodeConfig({
+                      ...selectedNode.data?.config,
+                      expression: e.target.value,
                     })
                   }
                   disabled={!isEditing}
@@ -467,6 +621,18 @@ export function WorkflowBuilder() {
                 />
               </div>
             )}
+
+            <Card className="p-3 bg-slate-50">
+              <div className="flex items-start gap-2">
+                <Settings className="w-4 h-4 text-slate-400 mt-0.5" />
+                <div className="text-xs text-slate-500">
+                  <div className="font-medium text-slate-700 mb-1">连接提示:</div>
+                  <div>• 点击节点右下角的连接点拖拽到目标节点</div>
+                  <div>• 按 Delete 键删除选中的节点</div>
+                  <div>• 滚动鼠标滚轮缩放画布</div>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       )}

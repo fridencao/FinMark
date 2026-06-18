@@ -4,22 +4,13 @@ import { useAppStore } from '@/stores/app';
 import { useCopilotStore } from '@/stores/copilot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { translations } from '@/i18n';
 
 export function GoalInputSection() {
   const { language } = useAppStore();
   const { goal, setGoal, isLoading, startOrchestration, orchestrationError } = useCopilotStore();
 
-  const t = language === 'zh' ? {
-    placeholder: '请输入您的营销目标，例如：推广新发基金，提升基金销售',
-    generatePlan: '生成方案',
-    orchestrating: '正在编排...',
-    error: '生成失败，请重试'
-  } : {
-    placeholder: 'Enter your marketing goal, e.g., promote new fund to increase sales',
-    generatePlan: 'Generate Plan',
-    orchestrating: 'Orchestrating...',
-    error: 'Failed to generate, please try again'
-  };
+  const t = translations[language].goalInput;
 
   const handleSubmit = () => {
     if (!goal.trim()) return;
