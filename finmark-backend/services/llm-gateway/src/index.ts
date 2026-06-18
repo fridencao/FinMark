@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import type { Application } from 'express';
 import cors from 'cors';
-import { generateContent, streamContent } from './geminiClient.js';
+import { provider } from './providers/index.js';
 import { LLMRequestSchema } from './types.js';
 
 const app: Application = express();
@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'llm-gateway', model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
+  res.json({ status: 'ok', service: 'llm-gateway', provider: provider.name });
 });
 
 app.post('/v1/completions', async (req, res, next) => {
@@ -27,7 +27,7 @@ app.post('/v1/completions', async (req, res, next) => {
     const prompt = userMessages.map(m => `[${m.role}]: ${m.content}`).join('\n');
     const systemInstruction = systemParts.join('\n\n');
 
-    const result = await generateContent(prompt, {
+    const result = await provider.generateContent(prompt, {
       systemInstruction,
       temperature,
       maxTokens,
@@ -65,7 +65,7 @@ app.post('/v1/stream', async (req, res, next) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     let totalContent = '';
-    for await (const chunk of streamContent(prompt, { systemInstruction, temperature, maxTokens })) {
+    for await (const chunk of provider.streamContent(prompt, { systemInstruction, temperature, maxTokens })) {
       totalContent += chunk;
       res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
     }
