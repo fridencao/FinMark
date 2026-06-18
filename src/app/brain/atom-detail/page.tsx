@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Copy, Trash2, Tag, TrendingUp, MessageSquare, Zap, BarChart3, Clock, Users, ShieldCheck, Edit3, Play } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,40 +13,83 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AnalyticsTab } from '@/components/brain/AnalyticsTab';
-
-const defaultAtom = {
-  id: 'atom_001',
-  name: '高净值客户识别',
-  type: 'customer_segment',
-  category: '客群标签',
-  tags: ['高净值', 'VIP', '资产配置'],
-  description: '识别资产超过500万且持有多种金融产品的客户',
-  conditions: [
-    { field: '总资产', operator: '>=', value: '5000000', unit: '元' },
-    { field: '产品持有数', operator: '>=', value: '3', unit: '个' },
-    { field: '风险偏好', operator: 'in', value: '稳健型,平衡型,进取型', unit: 'enum' },
-  ],
-  metrics: {
-    totalCount: 12580,
-    accuracy: 95.8,
-    lastUpdated: '2024-01-10',
-  },
-  usage: [
-    { scenario: '流失挽回', count: 4500 },
-    { scenario: '新客推荐', count: 3200 },
-    { scenario: '产品升级', count: 2800 },
-    { scenario: '活动触达', count: 2100 },
-  ],
-  status: 'active',
-  version: 'v2.1',
-};
+import { getAtom, updateAtom, deleteAtom, type Atom } from '@/services/strategy';
 
 export function BrainAtomDetailPage() {
   const { language } = useAppStore();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [atom, setAtom] = useState(defaultAtom);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('config');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<Partial<Atom>>({});
+
+  const { data: atomData, isLoading, isError } = useQuery({
+    queryKey: ['atom', id],
+    queryFn: () => getAtom(id!),
+    enabled: !!id,
+  });
+
+  const atom: Atom | undefined = atomData?.data ?? atomData;
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<Atom>) => updateAtom(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['atom', id] });
+      queryClient.invalidateQueries({ queryKey: ['atoms'] });
+      setIsEditing(false);
+      setEditData({});
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteAtom(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['atoms'] });
+      navigate('/brain');
+    },
+  });
+
+  const handleEdit = () => {
+    if (!atom) return;
+    setEditData({ name: atom.name, description: atom.description, tags: atom.tags, status: atom.status, version: atom.version });
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    if (Object.keys(editData).length > 0) {
+      updateMutation.mutate(editData);
+    } else {
+      setIsEditing(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm(language === 'zh' ? '确认删除此原子？此操作不可撤销。' : 'Confirm delete? This cannot be undone.')) {
+      deleteMutation.mutate();
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+          <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+          <div className="h-64 bg-slate-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !atom) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-slate-500 mb-4">{language === 'zh' ? '未找到该原子' : 'Atom not found'}</p>
+        <Button onClick={() => navigate('/brain')}>{language === 'zh' ? '返回列表' : 'Back to list'}</Button>
+      </div>
+    );
+  }
 
   const t = language === 'zh' ? {
     title: '原子详情',
@@ -119,27 +163,53 @@ export function BrainAtomDetailPage() {
           </Button>
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-slate-900">{atom.name}</h2>
+              {isEditing ? (
+                <Input
+                  value={editData.name ?? atom.name}
+                  onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                  className="text-2xl font-bold h-9 w-64"
+                />
+              ) : (
+                <h2 className="text-2xl font-bold text-slate-900">{atom.name}</h2>
+              )}
               <Badge variant="outline">{atom.version}</Badge>
             </div>
-            <p className="text-slate-500">{atom.description}</p>
+            {isEditing ? (
+              <Input
+                value={editData.description ?? atom.description ?? ''}
+                onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                className="mt-1 h-8 w-96"
+                placeholder={t.description}
+              />
+            ) : (
+              <p className="text-slate-500">{atom.description}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Switch checked={atom.status === 'active'} />
+          <Switch checked={atom.status === 'active'} onCheckedChange={(checked) => {
+            if (isEditing) setEditData(prev => ({ ...prev, status: checked ? 'active' : 'inactive' }));
+          }} />
           <span className="text-sm text-slate-600">{atom.status === 'active' ? t.active : t.inactive}</span>
           <Button variant="outline" size="sm">
             <Copy className="w-4 h-4 mr-1" />
             {t.duplicate}
           </Button>
-          <Button variant="outline" size="sm" className="text-rose-600 hover:text-rose-700">
+          <Button variant="outline" size="sm" className="text-rose-600 hover:text-rose-700" onClick={handleDelete} disabled={deleteMutation.isPending}>
             <Trash2 className="w-4 h-4 mr-1" />
             {t.delete}
           </Button>
-          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-            <Edit3 className="w-4 h-4 mr-1" />
-            {t.edit}
-          </Button>
+          {isEditing ? (
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={handleSave} disabled={updateMutation.isPending}>
+              <Save className="w-4 h-4 mr-1" />
+              {t.save}
+            </Button>
+          ) : (
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={handleEdit}>
+              <Edit3 className="w-4 h-4 mr-1" />
+              {t.edit}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -151,7 +221,7 @@ export function BrainAtomDetailPage() {
               <Users className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{atom.metrics.totalCount.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{atom.usageCount.toLocaleString()}</p>
               <p className="text-xs text-slate-500">{t.totalCount}</p>
             </div>
           </div>
@@ -162,7 +232,7 @@ export function BrainAtomDetailPage() {
               <TrendingUp className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{atom.metrics.accuracy}%</p>
+              <p className="text-2xl font-bold">{atom.successRate ? `${atom.successRate}%` : '-'}</p>
               <p className="text-xs text-slate-500">{t.accuracy}</p>
             </div>
           </div>
@@ -173,7 +243,7 @@ export function BrainAtomDetailPage() {
               <Clock className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{atom.metrics.lastUpdated}</p>
+              <p className="text-2xl font-bold">{atom.updatedAt ? new Date(atom.updatedAt).toLocaleDateString() : '-'}</p>
               <p className="text-xs text-slate-500">{t.lastUpdated}</p>
             </div>
           </div>
@@ -184,7 +254,7 @@ export function BrainAtomDetailPage() {
               <Zap className="w-5 h-5 text-violet-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{atom.usage.length}</p>
+              <p className="text-2xl font-bold">{atom.scenarios?.length ?? 0}</p>
               <p className="text-xs text-slate-500">{t.scenarioCount}</p>
             </div>
           </div>
@@ -217,18 +287,17 @@ export function BrainAtomDetailPage() {
         {/* Config Tab */}
         <TabsContent value="config" className="space-y-6 mt-6">
           <Card className="p-6">
-            <h4 className="font-bold mb-4">{t.conditions}</h4>
-            <div className="space-y-3">
-              {atom.conditions.map((condition, idx) => (
-                <div key={idx} className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-                  <Badge variant="outline" className="w-32">{condition.field}</Badge>
-                  <span className="text-slate-400">{condition.operator}</span>
-                  <Badge variant="secondary" className="flex-1">{condition.value}</Badge>
-                  <span className="text-xs text-slate-400">{condition.unit}</span>
-                </div>
-              ))}
-            </div>
+            <h4 className="font-bold mb-4">{t.description}</h4>
+            <p className="text-slate-600">{atom.description || '-'}</p>
           </Card>
+          {atom.config && (
+            <Card className="p-6">
+              <h4 className="font-bold mb-4">Config</h4>
+              <pre className="text-sm text-slate-600 bg-slate-50 p-3 rounded overflow-auto">
+                {JSON.stringify(atom.config, null, 2)}
+              </pre>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Usage Tab */}
@@ -238,23 +307,20 @@ export function BrainAtomDetailPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t.usedIn}</TableHead>
-                  <TableHead>{t.totalCount}</TableHead>
-                  <TableHead>{t.description}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {atom.usage.map((item, idx) => (
+                {(atom.scenarios ?? []).length > 0 ? atom.scenarios!.map((scenario, idx) => (
                   <TableRow key={idx}>
-                    <TableCell className="font-medium">{item.scenario}</TableCell>
-                    <TableCell>{item.count.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Play className="w-3 h-3 mr-1" />
-                        查看
-                      </Button>
+                    <TableCell className="font-medium">{scenario}</TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell className="text-slate-400 text-center py-8">
+                      {language === 'zh' ? '暂无使用记录' : 'No usage data'}
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </Card>
