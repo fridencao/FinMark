@@ -14,11 +14,12 @@ export class StrategyAgent extends BaseAgent {
   async plan(
     complianceResult: string,
     budget: number,
-    channels: string[] = ['短信', '企微', 'APP', '外呼']
+    channels: string[] = ['短信', '企微', 'APP', '外呼'],
+    model?: string
   ): Promise<AgentResult> {
     try {
       const prompt = PROMPTS.strategy.user(complianceResult, budget, channels);
-      const result = await this.callLLM(prompt);
+      const result = await this.callLLM(prompt, { model });
       const data = this.extractJSON(result.content);
       return { content: result.content, data, usage: result.usage };
     } catch (err: unknown) {
@@ -29,10 +30,11 @@ export class StrategyAgent extends BaseAgent {
   async* streamPlan(
     complianceResult: string,
     budget: number,
-    channels: string[] = ['短信', '企微', 'APP', '外呼']
+    channels: string[] = ['短信', '企微', 'APP', '外呼'],
+    model?: string
   ): AsyncGenerator<string> {
     const prompt = PROMPTS.strategy.user(complianceResult, budget, channels);
-    for await (const chunk of this.streamLLM(prompt)) {
+    for await (const chunk of this.streamLLM(prompt, { model })) {
       yield chunk;
     }
   }

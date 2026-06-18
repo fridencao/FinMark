@@ -12,6 +12,8 @@ export interface OrchestrationContext {
   budget?: number;
   channels?: string[];
   lang?: 'zh' | 'en';
+  model?: string;
+  prompts?: Record<string, string>;
 }
 
 export class MasterAgent extends BaseAgent {
@@ -41,6 +43,16 @@ export class MasterAgent extends BaseAgent {
     this.analyst.setLanguage(lang);
   }
 
+  private applyPrompts(prompts?: Record<string, string>) {
+    if (!prompts) return;
+    if (prompts.insight) this.insight.setSystemPrompt(prompts.insight);
+    if (prompts.segment) this.segment.setSystemPrompt(prompts.segment);
+    if (prompts.content) this.content.setSystemPrompt(prompts.content);
+    if (prompts.compliance) this.compliance.setSystemPrompt(prompts.compliance);
+    if (prompts.strategy) this.strategy.setSystemPrompt(prompts.strategy);
+    if (prompts.analyst) this.analyst.setSystemPrompt(prompts.analyst);
+  }
+
   async orchestrate(context: OrchestrationContext): Promise<{
     master: AgentResult;
     insight?: AgentResult;
@@ -51,22 +63,25 @@ export class MasterAgent extends BaseAgent {
     analyst?: AgentResult;
   }> {
     this.setLanguage(context.lang || 'zh');
+    this.applyPrompts(context.prompts);
 
     try {
-      const insightResult = await this.insight.analyze(context.goal);
-      const segmentResult = await this.segment.generate(insightResult.content, context.goal);
+      const insightResult = await this.insight.analyze(context.goal, undefined, context.model);
+      const segmentResult = await this.segment.generate(insightResult.content, context.goal, context.model);
       const contentResult = await this.content.generate(
         segmentResult.content,
         context.goal,
-        context.channels || ['短信', '企微', 'APP']
+        context.channels || ['短信', '企微', 'APP'],
+        context.model
       );
-      const complianceResult = await this.compliance.review(contentResult.content);
+      const complianceResult = await this.compliance.review(contentResult.content, undefined, context.model);
       const strategyResult = await this.strategy.plan(
         complianceResult.content,
         context.budget || 10000,
-        context.channels || ['短信', '企微', 'APP', '外呼']
+        context.channels || ['短信', '企微', 'APP', '外呼'],
+        context.model
       );
-      const analystResult = await this.analyst.evaluate(strategyResult.content);
+      const analystResult = await this.analyst.evaluate(strategyResult.content, undefined, context.model);
 
       const summary = await this.callLLM(
         `请汇总以下各智能体的输出，生成一份完整的营销执行方案。\n\n` +
@@ -101,11 +116,12 @@ export class MasterAgent extends BaseAgent {
     done: boolean;
   }> {
     this.setLanguage(context.lang || 'zh');
+    this.applyPrompts(context.prompts);
 
     try {
       yield { agent: 'insight', chunk: '开始洞察分析...\n', done: false };
       let insightContent = '';
-      for await (const chunk of this.insight.streamAnalyze(context.goal)) {
+      for await (const chunk of this.insight.streamAnalyze(context.goal, undefined, context.model)) {
         insightContent += chunk;
         yield { agent: 'insight', chunk, done: false };
       }
@@ -113,7 +129,7 @@ export class MasterAgent extends BaseAgent {
 
       yield { agent: 'segment', chunk: '开始客群筛选...\n', done: false };
       let segmentContent = '';
-      for await (const chunk of this.segment.streamGenerate(insightContent, context.goal)) {
+      for await (const chunk of this.segment.streamGenerate(insightContent, context.goal, context.model)) {
         segmentContent += chunk;
         yield { agent: 'segment', chunk, done: false };
       }
@@ -124,7 +140,8 @@ export class MasterAgent extends BaseAgent {
       for await (const chunk of this.content.streamGenerate(
         segmentContent,
         context.goal,
-        context.channels || ['短信', '企微', 'APP']
+        context.channels || ['短信', '企微', 'APP'],
+        context.model
       )) {
         contentResult += chunk;
         yield { agent: 'content', chunk, done: false };
@@ -133,7 +150,7 @@ export class MasterAgent extends BaseAgent {
 
       yield { agent: 'compliance', chunk: '开始合规审查...\n', done: false };
       let complianceResult = '';
-      for await (const chunk of this.compliance.streamReview(contentResult)) {
+      for await (const chunk of this.compliance.streamReview(contentResult, undefined, context.model)) {
         complianceResult += chunk;
         yield { agent: 'compliance', chunk, done: false };
       }
@@ -144,7 +161,8 @@ export class MasterAgent extends BaseAgent {
       for await (const chunk of this.strategy.streamPlan(
         complianceResult,
         context.budget || 10000,
-        context.channels || ['短信', '企微', 'APP', '外呼']
+        context.channels || ['短信', '企微', 'APP', '外呼'],
+        context.model
       )) {
         strategyResult += chunk;
         yield { agent: 'strategy', chunk, done: false };
@@ -152,7 +170,7 @@ export class MasterAgent extends BaseAgent {
       yield { agent: 'strategy', chunk: '\n\n', done: true };
 
       yield { agent: 'analyst', chunk: '开始效果评估...\n', done: false };
-      for await (const chunk of this.analyst.streamEvaluate(strategyResult)) {
+      for await (const chunk of this.analyst.streamEvaluate(strategyResult, undefined, context.model)) {
         yield { agent: 'analyst', chunk, done: false };
       }
       yield { agent: 'analyst', chunk: '', done: true };

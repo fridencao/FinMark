@@ -11,10 +11,10 @@ export class SegmentAgent extends BaseAgent {
     });
   }
 
-  async generate(insightResult: string, goal: string): Promise<AgentResult> {
+  async generate(insightResult: string, goal: string, model?: string): Promise<AgentResult> {
     try {
       const prompt = PROMPTS.segment.user(insightResult, goal);
-      const result = await this.callLLM(prompt);
+      const result = await this.callLLM(prompt, { model });
       const data = this.extractJSON(result.content);
       return { content: result.content, data, usage: result.usage };
     } catch (err: unknown) {
@@ -22,9 +22,9 @@ export class SegmentAgent extends BaseAgent {
     }
   }
 
-  async* streamGenerate(insightResult: string, goal: string): AsyncGenerator<string> {
+  async* streamGenerate(insightResult: string, goal: string, model?: string): AsyncGenerator<string> {
     const prompt = PROMPTS.segment.user(insightResult, goal);
-    for await (const chunk of this.streamLLM(prompt)) {
+    for await (const chunk of this.streamLLM(prompt, { model })) {
       yield chunk;
     }
   }

@@ -11,10 +11,10 @@ export class AnalystAgent extends BaseAgent {
     });
   }
 
-  async evaluate(strategyResult: string, executionData?: string): Promise<AgentResult> {
+  async evaluate(strategyResult: string, executionData?: string, model?: string): Promise<AgentResult> {
     try {
       const prompt = PROMPTS.analyst.user(strategyResult, executionData);
-      const result = await this.callLLM(prompt);
+      const result = await this.callLLM(prompt, { model });
       const data = this.extractJSON(result.content);
       return { content: result.content, data, usage: result.usage };
     } catch (err: unknown) {
@@ -22,9 +22,9 @@ export class AnalystAgent extends BaseAgent {
     }
   }
 
-  async* streamEvaluate(strategyResult: string, executionData?: string): AsyncGenerator<string> {
+  async* streamEvaluate(strategyResult: string, executionData?: string, model?: string): AsyncGenerator<string> {
     const prompt = PROMPTS.analyst.user(strategyResult, executionData);
-    for await (const chunk of this.streamLLM(prompt)) {
+    for await (const chunk of this.streamLLM(prompt, { model })) {
       yield chunk;
     }
   }

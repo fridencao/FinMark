@@ -25,10 +25,10 @@ app.get('/health', (_req, res) => {
 
 app.post('/agents/insight', async (req, res, next) => {
   try {
-    const { goal, context, lang = 'zh' } = req.body as { goal?: string; context?: string; lang?: string };
+    const { goal, context, lang = 'zh', model } = req.body as { goal?: string; context?: string; lang?: string; model?: string };
     if (!goal) return res.status(400).json({ error: 'goal is required' });
     insight.setLanguage(lang as 'zh' | 'en');
-    const result = await insight.analyze(goal, context);
+    const result = await insight.analyze(goal, context, model);
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -37,10 +37,10 @@ app.post('/agents/insight', async (req, res, next) => {
 
 app.post('/agents/segment', async (req, res, next) => {
   try {
-    const { insightResult, goal, lang = 'zh' } = req.body as { insightResult?: string; goal?: string; lang?: string };
+    const { insightResult, goal, lang = 'zh', model } = req.body as { insightResult?: string; goal?: string; lang?: string; model?: string };
     if (!insightResult || !goal) return res.status(400).json({ error: 'insightResult and goal are required' });
     segment.setLanguage(lang as 'zh' | 'en');
-    const result = await segment.generate(insightResult, goal);
+    const result = await segment.generate(insightResult, goal, model);
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -49,10 +49,10 @@ app.post('/agents/segment', async (req, res, next) => {
 
 app.post('/agents/content', async (req, res, next) => {
   try {
-    const { segmentResult, goal, channels, lang = 'zh' } = req.body as { segmentResult?: string; goal?: string; channels?: string[]; lang?: string };
+    const { segmentResult, goal, channels, lang = 'zh', model } = req.body as { segmentResult?: string; goal?: string; channels?: string[]; lang?: string; model?: string };
     if (!segmentResult || !goal) return res.status(400).json({ error: 'segmentResult and goal are required' });
     content.setLanguage(lang as 'zh' | 'en');
-    const result = await content.generate(segmentResult, goal, channels);
+    const result = await content.generate(segmentResult, goal, channels, model);
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -61,10 +61,10 @@ app.post('/agents/content', async (req, res, next) => {
 
 app.post('/agents/compliance', async (req, res, next) => {
   try {
-    const { content: contentText, riskLevels, lang = 'zh' } = req.body as { content?: string; riskLevels?: string; lang?: string };
+    const { content: contentText, riskLevels, lang = 'zh', model } = req.body as { content?: string; riskLevels?: string; lang?: string; model?: string };
     if (!contentText) return res.status(400).json({ error: 'content is required' });
     compliance.setLanguage(lang as 'zh' | 'en');
-    const result = await compliance.review(contentText, riskLevels);
+    const result = await compliance.review(contentText, riskLevels, model);
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -73,10 +73,10 @@ app.post('/agents/compliance', async (req, res, next) => {
 
 app.post('/agents/strategy', async (req, res, next) => {
   try {
-    const { complianceResult, budget, channels, lang = 'zh' } = req.body as { complianceResult?: string; budget?: number; channels?: string[]; lang?: string };
+    const { complianceResult, budget, channels, lang = 'zh', model } = req.body as { complianceResult?: string; budget?: number; channels?: string[]; lang?: string; model?: string };
     if (!complianceResult) return res.status(400).json({ error: 'complianceResult is required' });
     strategy.setLanguage(lang as 'zh' | 'en');
-    const result = await strategy.plan(complianceResult, budget || 10000, channels);
+    const result = await strategy.plan(complianceResult, budget || 10000, channels, model);
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -85,10 +85,10 @@ app.post('/agents/strategy', async (req, res, next) => {
 
 app.post('/agents/analyst', async (req, res, next) => {
   try {
-    const { strategyResult, executionData, lang = 'zh' } = req.body as { strategyResult?: string; executionData?: string; lang?: string };
+    const { strategyResult, executionData, lang = 'zh', model } = req.body as { strategyResult?: string; executionData?: string; lang?: string; model?: string };
     if (!strategyResult) return res.status(400).json({ error: 'strategyResult is required' });
     analyst.setLanguage(lang as 'zh' | 'en');
-    const result = await analyst.evaluate(strategyResult, executionData);
+    const result = await analyst.evaluate(strategyResult, executionData, model);
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -97,9 +97,9 @@ app.post('/agents/analyst', async (req, res, next) => {
 
 app.post('/agents/master', async (req, res, next) => {
   try {
-    const { goal, budget, channels, lang = 'zh' } = req.body as { goal?: string; budget?: number; channels?: string[]; lang?: string };
+    const { goal, budget, channels, lang = 'zh', model, prompts } = req.body as { goal?: string; budget?: number; channels?: string[]; lang?: string; model?: string; prompts?: Record<string, string> };
     if (!goal) return res.status(400).json({ error: 'goal is required' });
-    const result = await master.orchestrate({ goal, budget, channels, lang: lang as 'zh' | 'en' });
+    const result = await master.orchestrate({ goal, budget, channels, lang: lang as 'zh' | 'en', model, prompts });
     res.json({ success: true, data: result });
   } catch (err: unknown) {
     next(err);
@@ -108,7 +108,7 @@ app.post('/agents/master', async (req, res, next) => {
 
 app.post('/agents/master/stream', async (req, res, next) => {
   try {
-    const { goal, budget, channels, lang = 'zh' } = req.body as { goal?: string; budget?: number; channels?: string[]; lang?: string };
+    const { goal, budget, channels, lang = 'zh', model, prompts } = req.body as { goal?: string; budget?: number; channels?: string[]; lang?: string; model?: string; prompts?: Record<string, string> };
     if (!goal) return res.status(400).json({ error: 'goal is required' });
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -116,7 +116,7 @@ app.post('/agents/master/stream', async (req, res, next) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
-    for await (const event of master.streamOrchestrate({ goal, budget, channels, lang: lang as 'zh' | 'en' })) {
+    for await (const event of master.streamOrchestrate({ goal, budget, channels, lang: lang as 'zh' | 'en', model, prompts })) {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     }
     res.end();

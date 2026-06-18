@@ -29,15 +29,20 @@ export abstract class BaseAgent {
     this.lang = lang;
   }
 
+  setSystemPrompt(prompt: string) {
+    this.config.systemPrompt = prompt;
+  }
+
   protected async callLLM(
     prompt: string,
-    options: { stream?: boolean; temperature?: number } = {}
+    options: { stream?: boolean; temperature?: number; model?: string } = {}
   ): Promise<{ content: string; usage?: unknown }> {
     const temperature = options.temperature ?? this.config.temperature ?? 0.7;
+    const model = options.model || 'gemini-2.5-flash';
 
     try {
       const response = await axios.post(`${LLM_GATEWAY_URL}/v1/completions`, {
-        model: 'gemini-2.5-flash',
+        model,
         messages: [
           { role: 'system', content: this.config.systemPrompt },
           { role: 'user', content: prompt },
@@ -57,11 +62,15 @@ export abstract class BaseAgent {
     }
   }
 
-  protected async* streamLLM(prompt: string): AsyncGenerator<string> {
+  protected async* streamLLM(
+    prompt: string,
+    options: { temperature?: number; model?: string } = {}
+  ): AsyncGenerator<string> {
+    const model = options.model || 'gemini-2.5-flash';
     const response = await axios.post(
       `${LLM_GATEWAY_URL}/v1/stream`,
       {
-        model: 'gemini-2.5-flash',
+        model,
         messages: [
           { role: 'system', content: this.config.systemPrompt },
           { role: 'user', content: prompt },
@@ -83,8 +92,8 @@ export abstract class BaseAgent {
           try {
             const data = JSON.parse(line.slice(6));
             if (data.error) throw new Error(data.error);
-            if (data.content) yield data.content;
             if (data.done) return;
+            if (data.content) yield data.content;
           } catch {
           }
         }

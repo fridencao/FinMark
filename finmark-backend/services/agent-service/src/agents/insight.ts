@@ -11,10 +11,10 @@ export class InsightAgent extends BaseAgent {
     });
   }
 
-  async analyze(goal: string, context?: string): Promise<AgentResult> {
+  async analyze(goal: string, context?: string, model?: string): Promise<AgentResult> {
     try {
       const prompt = PROMPTS.insight.user(goal, context);
-      const result = await this.callLLM(prompt);
+      const result = await this.callLLM(prompt, { model });
       const data = this.extractJSON(result.content);
       return { content: result.content, data, usage: result.usage };
     } catch (err: unknown) {
@@ -22,9 +22,9 @@ export class InsightAgent extends BaseAgent {
     }
   }
 
-  async* streamAnalyze(goal: string, context?: string): AsyncGenerator<string> {
+  async* streamAnalyze(goal: string, context?: string, model?: string): AsyncGenerator<string> {
     const prompt = PROMPTS.insight.user(goal, context);
-    for await (const chunk of this.streamLLM(prompt)) {
+    for await (const chunk of this.streamLLM(prompt, { model })) {
       yield chunk;
     }
   }

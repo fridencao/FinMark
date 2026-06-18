@@ -11,10 +11,10 @@ export class ComplianceAgent extends BaseAgent {
     });
   }
 
-  async review(content: string, riskLevels?: string): Promise<AgentResult> {
+  async review(content: string, riskLevels?: string, model?: string): Promise<AgentResult> {
     try {
       const prompt = PROMPTS.compliance.user(content, riskLevels);
-      const result = await this.callLLM(prompt);
+      const result = await this.callLLM(prompt, { model });
       const data = this.extractJSON(result.content);
       return { content: result.content, data, usage: result.usage };
     } catch (err: unknown) {
@@ -22,9 +22,9 @@ export class ComplianceAgent extends BaseAgent {
     }
   }
 
-  async* streamReview(content: string, riskLevels?: string): AsyncGenerator<string> {
+  async* streamReview(content: string, riskLevels?: string, model?: string): AsyncGenerator<string> {
     const prompt = PROMPTS.compliance.user(content, riskLevels);
-    for await (const chunk of this.streamLLM(prompt)) {
+    for await (const chunk of this.streamLLM(prompt, { model })) {
       yield chunk;
     }
   }
