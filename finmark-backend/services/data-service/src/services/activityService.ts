@@ -93,7 +93,8 @@ async function getCustomerBreakdown(activityId: string) {
     };
   }
 
-  const channels = (execution.scenario?.config as any)?.channels || [];
+  const config = execution.scenario?.config as Record<string, any> | null;
+  const channels = config?.channels || [];
   const channelBreakdown = Array.isArray(channels) 
     ? channels.map((c: any) => ({
         channel: typeof c === 'string' ? c : c.name,

@@ -1,11 +1,13 @@
 import type { Router as RouterType } from 'express';
 import { Router } from 'express';
-import { param, query, validationResult } from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 import { requireAuth } from '../middleware/auth.js';
 import { ValidationError } from '../middleware/error.js';
-import { crmService } from '../services/crmService.js';
+import { crmService, CrmIntegrationService } from '../services/crmService.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
+
+const crmIntegration = new CrmIntegrationService();
 
 export const crmRouter: RouterType = Router();
 
@@ -100,6 +102,70 @@ crmRouter.post('/customers/sync',
       const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
       await createAuditLog(authReq.user?.userId, 'SYNC', 'crm', { 
         syncedCount: result.customers?.length || 0 
+      }, ip);
+
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+crmRouter.post('/sync',
+  body('since').optional().isISO8601(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
+
+      const lastSyncDate = req.body.since ? new Date(req.body.since) : undefined;
+      const result = await crmIntegration.syncCustomers(lastSyncDate);
+
+      const authReq = req as AuthRequest;
+      const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
+      await createAuditLog(authReq.user?.userId, 'SYNC', 'crm', {
+        syncedCount: result.synced,
+      }, ip);
+
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+crmRouter.get('/tags/:customerId',
+  param('customerId').isString().notEmpty(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
+
+      const tags = await crmIntegration.getCustomerTags(req.params.customerId);
+      res.json({ success: true, data: { customerId: req.params.customerId, tags } });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+crmRouter.post('/export-segment',
+  body('segmentId').isString().notEmpty(),
+  body('crmSegmentName').isString().notEmpty(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) throw new ValidationError(errors.array().map(e => e.msg).join(', '));
+
+      const { segmentId, crmSegmentName } = req.body;
+      const result = await crmIntegration.exportAudienceSegment(segmentId, crmSegmentName);
+
+      const authReq = req as AuthRequest;
+      const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
+      await createAuditLog(authReq.user?.userId, 'EXPORT', 'crm', {
+        segmentId,
+        exportId: result.exportId,
+        count: result.count,
       }, ip);
 
       res.json({ success: true, data: result });

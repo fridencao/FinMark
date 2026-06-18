@@ -10,6 +10,7 @@ export interface JWTPayload {
   userId: string;
   username: string;
   role: string;
+  authMethod?: 'local' | 'ldap';
 }
 
 export interface AuthRequest extends Request {

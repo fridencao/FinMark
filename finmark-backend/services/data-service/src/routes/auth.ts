@@ -6,6 +6,7 @@ import { generateToken } from '../middleware/auth.js';
 import { ValidationError, UnauthorizedError } from '../middleware/error.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import { authenticate, getUserInfo, syncUser } from '../services/ldapService.js';
 
 export const authRouter: RouterType = Router();
 
@@ -83,6 +84,58 @@ authRouter.get('/me', async (req, res, next) => {
     });
     if (!user) throw new UnauthorizedError();
     res.json({ success: true, data: user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/ldap', async (req, res, next) => {
+  try {
+    const { username, password } = req.body as { username?: string; password?: string };
+
+    if (!username || !password) {
+      throw new ValidationError('Username and password are required');
+    }
+
+    const isValid = await authenticate(username, password);
+    if (!isValid) {
+      throw new UnauthorizedError('Invalid LDAP credentials');
+    }
+
+    const ldapUserInfo = await getUserInfo(username);
+
+    let user;
+    if (ldapUserInfo) {
+      user = await syncUser(ldapUserInfo);
+    } else {
+      user = await prisma.user.findUnique({ where: { username } });
+      if (!user || user.status === 'disabled') {
+        throw new UnauthorizedError('User not found or disabled');
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
+    const ip = typeof req.ip === 'string' ? req.ip : undefined;
+    await createAuditLog(user.id, 'LDAP_LOGIN', 'user', { username }, ip);
+
+    const token = generateToken({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      authMethod: 'ldap',
+    });
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: { id: user.id, username: user.username, name: user.name, role: user.role },
+      },
+    });
   } catch (err) {
     next(err);
   }

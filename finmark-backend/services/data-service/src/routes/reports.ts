@@ -5,6 +5,14 @@ import { requireAuth } from '../middleware/auth.js';
 import { ValidationError, NotFoundError } from '../middleware/error.js';
 import { prisma } from '../config/database.js';
 import { generatePDF, generateExcel, type ReportConfig } from '../services/reportGenerator.js';
+import {
+  exportToExcel,
+  exportToPDF,
+  generateActivityReport,
+  generateAudienceReport,
+  generateContentReport,
+  generateChannelReport,
+} from '../services/reportExportService.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { createReadStream } from 'fs';
@@ -68,8 +76,9 @@ reportRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
+      const reportId = req.params.id!;
       const report = await prisma.report.findUnique({
-        where: { id: req.params.id },
+        where: { id: reportId },
       });
 
       if (!report) return next(new NotFoundError('Report'));
@@ -158,8 +167,9 @@ reportRouter.get(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
+      const reportId = req.params.id!;
       const report = await prisma.report.findUnique({
-        where: { id: req.params.id },
+        where: { id: reportId },
       });
 
       if (!report) return next(new NotFoundError('Report'));
@@ -185,15 +195,132 @@ reportRouter.delete(
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
+      const reportId = req.params.id!;
       await prisma.report.delete({
-        where: { id: req.params.id },
+        where: { id: reportId },
       });
 
       const authReq = req as AuthRequest;
       const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
-      await createAuditLog(authReq.user?.userId, 'DELETE', 'report', { reportId: req.params.id }, ip);
+      await createAuditLog(authReq.user?.userId, 'DELETE', 'report', { reportId }, ip);
 
       res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/reports/export/activity - Export activity report
+reportRouter.get(
+  '/export/activity',
+  query('start').isISO8601(),
+  query('end').isISO8601(),
+  query('format').optional().isIn(['excel', 'pdf']),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const { start, end, format = 'excel' } = req.query as Record<string, string>;
+      const result = await generateActivityReport({
+        dateRange: { start, end },
+        format: format as 'excel' | 'pdf',
+      });
+
+      const authReq = req as AuthRequest;
+      const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
+      await createAuditLog(authReq.user?.userId, 'EXPORT', 'report', { type: 'activity', format }, ip);
+
+      res.download(result.filePath, result.fileName);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/reports/export/audience - Export audience report
+reportRouter.get(
+  '/export/audience',
+  query('start').isISO8601(),
+  query('end').isISO8601(),
+  query('format').optional().isIn(['excel', 'pdf']),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const { start, end, format = 'excel' } = req.query as Record<string, string>;
+      const result = await generateAudienceReport({
+        dateRange: { start, end },
+        format: format as 'excel' | 'pdf',
+      });
+
+      const authReq = req as AuthRequest;
+      const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
+      await createAuditLog(authReq.user?.userId, 'EXPORT', 'report', { type: 'audience', format }, ip);
+
+      res.download(result.filePath, result.fileName);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/reports/export/content - Export content report
+reportRouter.get(
+  '/export/content',
+  query('start').isISO8601(),
+  query('end').isISO8601(),
+  query('format').optional().isIn(['excel', 'pdf']),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const { start, end, format = 'excel' } = req.query as Record<string, string>;
+      const result = await generateContentReport({
+        dateRange: { start, end },
+        format: format as 'excel' | 'pdf',
+      });
+
+      const authReq = req as AuthRequest;
+      const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
+      await createAuditLog(authReq.user?.userId, 'EXPORT', 'report', { type: 'content', format }, ip);
+
+      res.download(result.filePath, result.fileName);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/reports/export/channel - Export channel report
+reportRouter.get(
+  '/export/channel',
+  query('start').isISO8601(),
+  query('end').isISO8601(),
+  query('format').optional().isIn(['excel', 'pdf']),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const { start, end, format = 'excel' } = req.query as Record<string, string>;
+      const result = await generateChannelReport({
+        dateRange: { start, end },
+        format: format as 'excel' | 'pdf',
+      });
+
+      const authReq = req as AuthRequest;
+      const ip = (typeof req.ip === 'string' ? req.ip : undefined) as string | undefined;
+      await createAuditLog(authReq.user?.userId, 'EXPORT', 'report', { type: 'channel', format }, ip);
+
+      res.download(result.filePath, result.fileName);
     } catch (err) {
       next(err);
     }

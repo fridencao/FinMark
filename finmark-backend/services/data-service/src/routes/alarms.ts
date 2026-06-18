@@ -4,6 +4,7 @@ import { body, param, query, validationResult } from 'express-validator';
 import { requireAuth } from '../middleware/auth.js';
 import { ValidationError, NotFoundError } from '../middleware/error.js';
 import * as alarmService from '../services/alarmService.js';
+import * as alarmWorkflowService from '../services/alarmWorkflowService.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
@@ -209,6 +210,122 @@ alarmRouter.post(
 
       const alarm = await alarmService.resolveAlarm(req.params.id);
       res.json({ success: true, data: alarm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/alarms/:id/acknowledge - Acknowledge an alarm
+alarmRouter.post(
+  '/:id/acknowledge',
+  param('id').isUUID(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const alarm = await alarmWorkflowService.acknowledgeAlarm(req.params.id);
+      res.json({ success: true, data: alarm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/alarms/:id/process - Start processing
+alarmRouter.post(
+  '/:id/process',
+  param('id').isUUID(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const alarm = await alarmWorkflowService.startProcessing(req.params.id);
+      res.json({ success: true, data: alarm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/alarms/:id/resolve - Resolve alarm
+alarmRouter.post(
+  '/:id/resolve',
+  param('id').isUUID(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const alarm = await alarmWorkflowService.resolveAlarm(req.params.id);
+      res.json({ success: true, data: alarm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/alarms/:id/comment - Add comment
+alarmRouter.post(
+  '/:id/comment',
+  param('id').isUUID(),
+  body('author').isString().notEmpty(),
+  body('content').isString().notEmpty(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const { author, content } = req.body;
+      const alarm = await alarmWorkflowService.addComment(req.params.id, author, content);
+      res.json({ success: true, data: alarm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/alarms/:id/details - Get alarm details with history
+alarmRouter.get(
+  '/:id/details',
+  param('id').isUUID(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const alarm = await alarmWorkflowService.getAlarmDetails(req.params.id);
+      if (!alarm) return next(new NotFoundError('Alarm'));
+      res.json({ success: true, data: alarm });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/alarms/stats - Get alarm statistics
+alarmRouter.get(
+  '/stats',
+  query('startDate').optional().isISO8601(),
+  query('endDate').optional().isISO8601(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const stats = await alarmWorkflowService.getAlarmStats(startDate, endDate);
+      res.json({ success: true, data: stats });
     } catch (err) {
       next(err);
     }
