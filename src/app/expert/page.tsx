@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Users, Database, GitBranch, FileText, Settings as SettingsIcon, Plus, ArrowRight } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
+import { Users, Database, GitBranch, FileText, Settings as SettingsIcon, Plus, ArrowRight, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
+import { getAudiencePreview } from '@/services/audience';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +28,47 @@ export function ExpertPage() {
   const [activeModule, setActiveModule] = useState('audience');
   const [audienceStats, setAudienceStats] = useState({ size: 8500, reachRate: 65, estimated: 5525 });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  interface ConditionRow {
+    id: string;
+    field: string;
+    operator: string;
+    value: string;
+    logic?: 'and' | 'or';
+  }
+
+  const [conditions, setConditions] = useState<ConditionRow[]>([
+    { id: '1', field: 'age', operator: '>=', value: '30', logic: 'and' },
+    { id: '2', field: 'risk_level', operator: 'in', value: 'R3,R4,R5' },
+  ]);
+
+  const previewMutation = useMutation({
+    mutationFn: (conds: ConditionRow[]) => getAudiencePreview(conds, 10000),
+    onSuccess: (res: any) => {
+      const data = res.data?.data ?? res.data;
+      setAudienceStats({
+        size: data?.totalCount ?? data?.count ?? 0,
+        reachRate: data?.reachRate ?? 65,
+        estimated: data?.estimatedReach ?? Math.floor((data?.totalCount ?? 0) * 0.65),
+      });
+    },
+    onError: (err: unknown) => {
+      console.error('Audience preview failed:', err);
+      setAudienceStats({ size: 0, reachRate: 0, estimated: 0 });
+    },
+  });
+
+  const addCondition = () => {
+    setConditions(prev => [...prev, { id: Date.now().toString(), field: 'age', operator: '=', value: '', logic: 'and' }]);
+  };
+
+  const removeCondition = (id: string) => {
+    setConditions(prev => prev.length > 1 ? prev.filter(c => c.id !== id) : prev);
+  };
+
+  const updateCondition = (id: string, field: keyof ConditionRow, value: string) => {
+    setConditions(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
 
   const t = language === 'zh' ? {
     title: '专家模式',
@@ -113,93 +156,73 @@ export function ExpertPage() {
           <h3 className="font-bold text-lg mb-6">{t.conditionBuilder}</h3>
           
           <div className="space-y-4">
-            {/* Condition Row */}
-            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-              <Select defaultValue="age">
-                <SelectTrigger className="w-40 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fields.map(f => (
-                    <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select defaultValue=">=">
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {operators.map(o => (
-                    <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Input placeholder="值" className="flex-1" defaultValue="30" />
-              
-              <Select defaultValue="and">
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="and">{language === 'zh' ? '且' : 'AND'}</SelectItem>
-                  <SelectItem value="or">{language === 'zh' ? '或' : 'OR'}</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline" size="sm">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
+            {conditions.map((row, idx) => (
+              <div key={row.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                <Select value={row.field} onValueChange={(v) => updateCondition(row.id, 'field', v)}>
+                  <SelectTrigger className="w-40 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fields.map(f => (
+                      <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            {/* Additional Conditions */}
-            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-              <Select defaultValue="risk_level">
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fields.map(f => (
-                    <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select defaultValue="in">
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {operators.map(o => (
-                    <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Input placeholder="值" className="flex-1" defaultValue="R3, R4, R5" />
-              
-              <div className="w-24" />
-              <div className="w-8" />
-            </div>
+                <Select value={row.operator} onValueChange={(v) => updateCondition(row.id, 'operator', v)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operators.map(o => (
+                      <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  placeholder={language === 'zh' ? '值' : 'Value'}
+                  className="flex-1"
+                  value={row.value}
+                  onChange={(e) => updateCondition(row.id, 'value', e.target.value)}
+                />
+
+                {idx < conditions.length - 1 ? (
+                  <Select value={row.logic ?? 'and'} onValueChange={(v) => updateCondition(row.id, 'logic', v)}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="and">{language === 'zh' ? '且' : 'AND'}</SelectItem>
+                      <SelectItem value="or">{language === 'zh' ? '或' : 'OR'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="w-24" />
+                )}
+
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => removeCondition(row.id)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+
+            <Button variant="outline" size="sm" onClick={addCondition} className="ml-4">
+              <Plus className="w-4 h-4 mr-1" />
+              {t.addCondition}
+            </Button>
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-4">
-              <Button variant="outline" className="rounded-xl" onClick={() => setAudienceStats({ size: 0, reachRate: 0, estimated: 0 })}>{t.clear}</Button>
+              <Button variant="outline" className="rounded-xl" onClick={() => {
+                setAudienceStats({ size: 0, reachRate: 0, estimated: 0 });
+                setConditions([{ id: '1', field: 'age', operator: '>=', value: '30', logic: 'and' }]);
+              }}>{t.clear}</Button>
               <Button
                 className="bg-indigo-600 hover:bg-indigo-700 rounded-xl"
-                onClick={() => {
-                  setIsGenerating(true);
-                  setTimeout(() => {
-                    const size = Math.floor(Math.random() * 20000) + 1000;
-                    const rate = Math.floor(Math.random() * 30) + 50;
-                    setAudienceStats({ size, reachRate: rate, estimated: Math.floor(size * rate / 100) });
-                    setIsGenerating(false);
-                  }, 800);
-                }}
+                onClick={() => previewMutation.mutate(conditions)}
               >
-                {isGenerating ? (language === 'zh' ? '生成中...' : 'Generating...') : t.apply}
+                {previewMutation.isPending ? (language === 'zh' ? '生成中...' : 'Generating...') : t.apply}
               </Button>
             </div>
           </div>
