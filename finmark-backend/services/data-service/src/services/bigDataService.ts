@@ -125,6 +125,19 @@ class BigDataService {
     }>(query, { conditions, limit });
     return result.audiencePreview;
   }
+
+  /** 真实连通性探测：用最小 query 验证 GraphQL 端点可达，返回连接状态 */
+  async healthCheck(): Promise<{ status: 'connected' | 'error'; reason?: string }> {
+    try {
+      await this.client.request<{ __typename: string }>(`query HealthCheck { __typename }`);
+      return { status: 'connected' };
+    } catch (err) {
+      return {
+        status: 'error',
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
 }
 
 export const bigDataService = new BigDataService();

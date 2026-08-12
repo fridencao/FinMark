@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { ValidationError } from '../middleware/error.js';
 import { healthCheck as benefitHealthCheck } from '../services/benefitService.js';
 import { healthCheck as channelHealthCheck } from '../services/channelService.js';
+import { bigDataService } from '../services/bigDataService.js';
 
 export const settingsRouter: RouterType = Router();
 
@@ -108,21 +109,49 @@ settingsRouter.post('/models/:id/default', param('id').isUUID(), async (req, res
   } catch (err) { next(err); }
 });
 
-settingsRouter.get('/integrations', (_req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 'crm', name: 'CRM系统', type: 'crm', status: 'connected', lastSync: new Date().toISOString() },
-      { id: 'rights', name: '权益系统', type: 'rights', status: 'connected', lastSync: new Date().toISOString() },
-      { id: 'channel', name: '渠道系统', type: 'channel', status: 'disconnected' },
-      { id: 'bigdata', name: '大数据平台', type: 'bigdata', status: 'connected', lastSync: new Date().toISOString() },
-    ],
-  });
+const INTEGRATION_META = [
+  { id: 'crm', name: 'CRM系统', type: 'crm' },
+  { id: 'rights', name: '权益系统', type: 'rights' },
+  { id: 'channel', name: '渠道系统', type: 'channel' },
+  { id: 'bigdata', name: '大数据平台', type: 'bigdata' },
+];
+
+settingsRouter.get('/integrations', async (_req, res, next) => {
+  try {
+    const data = await Promise.all(
+      INTEGRATION_META.map(async (meta) => {
+        const check = healthCheckMap[meta.type];
+        if (check) {
+          try {
+            const health = await check();
+            return {
+              ...meta,
+              status: health.status,
+              lastSync: health.status === 'connected' ? new Date().toISOString() : undefined,
+              ...(health.reason ? { reason: health.reason } : {}),
+            };
+          } catch (err) {
+            return {
+              ...meta,
+              status: 'error',
+              reason: err instanceof Error ? err.message : String(err),
+            };
+          }
+        }
+        // 暂无独立健康检查实现的集成（如 crm）保持静态 connected
+        return { ...meta, status: 'connected' as const };
+      })
+    );
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
 });
 
 const healthCheckMap: Record<string, () => Promise<{ status: string; reason?: string }>> = {
   rights: benefitHealthCheck,
   channel: channelHealthCheck,
+  bigdata: () => bigDataService.healthCheck(),
 };
 
 settingsRouter.post('/integrations/:type/connect', async (req, res, next) => {

@@ -70,7 +70,16 @@ abTestRouter.get(
       const test = await abTestService.getTestById(req.params!.id);
       if (!test) return next(new NotFoundError('AbTest'));
 
-      res.json({ success: true, data: test });
+      // 将后端分支字段(weight/impressions/conversions)映射为前端契约(traffic/sampleSize/conversionCount)
+      const branches = (test.branches as unknown as Array<Record<string, any>>).map((b) => ({
+        id: b.id,
+        name: b.name,
+        traffic: typeof b.weight === 'number' ? b.weight : (typeof b.traffic === 'number' ? b.traffic : 0),
+        sampleSize: typeof b.impressions === 'number' ? b.impressions : (typeof b.sampleSize === 'number' ? b.sampleSize : 0),
+        conversionCount: typeof b.conversions === 'number' ? b.conversions : (typeof b.conversionCount === 'number' ? b.conversionCount : 0),
+      }));
+
+      res.json({ success: true, data: { ...test, branches } });
     } catch (err) {
       next(err);
     }
@@ -122,17 +131,22 @@ abTestRouter.post(
 );
 
 abTestRouter.post(
-  '/:id/convert',
+  '/:id/conversions',
   param('id').isUUID(),
   body('branchId').isString().notEmpty(),
+  body('count').optional().isInt({ min: 1 }),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
         throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
 
-      const b = req.body as { branchId: string };
-      const test = await abTestService.recordConversion(req.params!.id, b.branchId);
+      const b = req.body as { branchId: string; count?: number };
+      const test = await abTestService.recordConversion(
+        req.params!.id,
+        b.branchId,
+        typeof b.count === 'number' ? b.count : 1
+      );
 
       res.json({ success: true, data: test });
     } catch (err) {

@@ -8,6 +8,30 @@ export interface Branch {
   conversions: number;
 }
 
+/**
+ * 前端创建测试时只传 {name, traffic}，缺少 id/weight/impressions/conversions。
+ * 该类型用于兼容两种输入（完整 Branch 或仅前端表单字段）。
+ */
+interface RawBranch {
+  id?: string;
+  name: string;
+  weight?: number;
+  traffic?: number;
+  impressions?: number;
+  conversions?: number;
+}
+
+/** 将任意形态的分支输入规范化为完整 Branch（补 id、映射 traffic→weight、初始化计数） */
+function normalizeBranches(branches: RawBranch[]): Branch[] {
+  return branches.map((b, i) => ({
+    id: b.id || `branch-${Date.now()}-${i}`,
+    name: b.name,
+    weight: typeof b.weight === 'number' ? b.weight : (typeof b.traffic === 'number' ? b.traffic : 50),
+    impressions: typeof b.impressions === 'number' ? b.impressions : 0,
+    conversions: typeof b.conversions === 'number' ? b.conversions : 0,
+  }));
+}
+
 export interface CreateTestInput {
   name: string;
   type: string;
@@ -22,7 +46,7 @@ export async function createTest(input: CreateTestInput) {
       name: input.name,
       type: input.type,
       description: input.description,
-      branches: input.branches as unknown as object,
+      branches: normalizeBranches(input.branches as unknown as RawBranch[]) as unknown as object,
       metric: input.metric,
     },
   });
@@ -66,7 +90,7 @@ export async function stopTest(id: string) {
   });
 }
 
-export async function recordConversion(testId: string, branchId: string) {
+export async function recordConversion(testId: string, branchId: string, count: number = 1) {
   const test = await prisma.abTest.findUnique({ where: { id: testId } });
   if (!test) throw new Error('Test not found');
   if (test.status !== 'running') throw new Error('Test must be running to record conversions');
@@ -75,7 +99,7 @@ export async function recordConversion(testId: string, branchId: string) {
   const branchIndex = branches.findIndex((b) => b.id === branchId);
   if (branchIndex === -1) throw new Error(`Branch ${branchId} not found`);
 
-  branches[branchIndex].conversions += 1;
+  branches[branchIndex].conversions += count;
 
   return prisma.abTest.update({
     where: { id: testId },
@@ -119,60 +143,98 @@ export async function allocateTraffic(testId: string, method: 'random' | 'percen
   return { branch: selectedBranch.id };
 }
 
+/** 标准正态 CDF 近似（Abramowitz & Stegun 7.1.26） */
+function normalCDF(x: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-(x * x) / 2);
+  let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  if (x > 0) p = 1 - p;
+  return p;
+}
+
+/** 两比例 z 检验，返回 z 与双尾 p-value */
+function twoPropZTest(c1: number, n1: number, c2: number, n2: number): { z: number; pValue: number } {
+  if (n1 === 0 || n2 === 0) return { z: 0, pValue: 1 };
+  const p1 = c1 / n1;
+  const p2 = c2 / n2;
+  const pPool = (c1 + c2) / (n1 + n2);
+  if (pPool === 0 || pPool === 1) return { z: 0, pValue: 1 };
+  const se = Math.sqrt(pPool * (1 - pPool) * (1 / n1 + 1 / n2));
+  if (se === 0) return { z: 0, pValue: 1 };
+  const z = Math.abs(p1 - p2) / se;
+  const pValue = 2 * (1 - normalCDF(z));
+  return { z, pValue };
+}
+
+/** Wilson 95% 置信区间下界（返回 0~1 比例的置信下限） */
+function wilsonLower(conversions: number, impressions: number, z = 1.96): number {
+  if (impressions === 0) return 0;
+  const p = conversions / impressions;
+  const denom = 1 + (z * z) / impressions;
+  const centre = p + (z * z) / (2 * impressions);
+  const margin = z * Math.sqrt((p * (1 - p)) / impressions + (z * z) / (4 * impressions * impressions));
+  return Math.max(0, (centre - margin) / denom);
+}
+
 export async function getResults(testId: string) {
   const test = await prisma.abTest.findUnique({ where: { id: testId } });
   if (!test) throw new Error('Test not found');
 
-  const branches = test.branches as unknown as Branch[];
-  const branchResults = branches.map((b) => ({
+  const branches = (test.branches as unknown as Branch[]).map((b) => ({
     id: b.id,
     name: b.name,
-    impressions: b.impressions,
-    conversions: b.conversions,
+    sampleSize: b.impressions,
+    conversionCount: b.conversions,
     conversionRate: b.impressions > 0 ? b.conversions / b.impressions : 0,
+    confidence: b.impressions > 0 ? wilsonLower(b.conversions, b.impressions) * 100 : 0,
   }));
 
-  const isSignificant = checkSignificance(branchResults);
+  if (branches.length === 0) {
+    return {
+      testId,
+      name: test.name,
+      status: test.status,
+      metric: test.metric,
+      branches,
+      winner: null,
+      winnerBranchId: null,
+      isSignificant: false,
+      pValue: 1,
+    };
+  }
 
-  const winnerResult = branchResults.reduce((best, current) =>
-    current.conversionRate > best.conversionRate ? current : best
+  // 选出转化率最高的分支作为候选胜者
+  const sorted = [...branches].sort((a, b) => b.conversionRate - a.conversionRate);
+  const best = sorted[0];
+  const rest = sorted.slice(1);
+
+  // 多分支显著性：最佳分支 vs 其余分支合并（池化）的两比例 z 检验
+  let pValue = 1;
+  if (rest.length > 0) {
+    const cRest = rest.reduce((s, b) => s + b.conversionCount, 0);
+    const nRest = rest.reduce((s, b) => s + b.sampleSize, 0);
+    pValue = twoPropZTest(best.conversionCount, best.sampleSize, cRest, nRest).pValue;
+  }
+
+  const isSignificant = pValue < 0.05;
+
+  const hasTie = branches.every(
+    (b) => Math.abs(b.conversionRate - best.conversionRate) < 0.0001
   );
 
-  const hasTie = branchResults.every(
-    (b) => Math.abs(b.conversionRate - winnerResult.conversionRate) < 0.0001
-  );
+  const winnerId = hasTie ? null : best.id;
 
   return {
     testId,
     name: test.name,
     status: test.status,
     metric: test.metric,
-    branches: branchResults,
-    winner: hasTie ? null : winnerResult.id,
+    branches,
+    winner: winnerId,
+    winnerBranchId: winnerId,
     isSignificant,
+    pValue,
   };
-}
-
-function checkSignificance(branches: { impressions: number; conversionRate: number }[]): boolean {
-  if (branches.length < 2) return false;
-
-  const [a, b] = branches;
-  if (a.impressions < 30 || b.impressions < 30) return false;
-
-  const p1 = a.conversionRate;
-  const p2 = b.conversionRate;
-  const n1 = a.impressions;
-  const n2 = b.impressions;
-
-  const pPool = (p1 * n1 + p2 * n2) / (n1 + n2);
-  if (pPool === 0 || pPool === 1) return false;
-
-  const se = Math.sqrt(pPool * (1 - pPool) * (1 / n1 + 1 / n2));
-  if (se === 0) return false;
-
-  const z = Math.abs(p1 - p2) / se;
-
-  return z > 1.96;
 }
 
 export async function selectWinner(testId: string) {
