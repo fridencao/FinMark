@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Factory, Plus, Wand2, Users, Zap, TrendingUp, ShieldCheck, Sparkles, Edit3, Zap as Execute, Search, Trash2, Loader2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Plus, Wand2, Users, Zap, TrendingUp, ShieldCheck, Sparkles, Edit3, Zap as Execute, Search, Trash2, Loader2, ChevronDown, ChevronUp, Users as UsersIcon, Target, FileText, Route, Check } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/app';
 import { translations } from '@/i18n';
@@ -12,17 +11,23 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getScenarios, getDefaultScenarios, createScenario, deleteScenario, generateScenarioByAI, Scenario } from '@/services/scenario';
+import { getScenarios, getDefaultScenarios, createScenario, deleteScenario, generateScenarioByAI, type GeneratedFourStageScenario, type ScenarioCategory } from '@/services/scenario';
+
+type WizardMode = 'ai-input' | 'ai-preview' | 'manual';
+
+const categoryOptions: { value: ScenarioCategory; labelZh: string; labelEn: string }[] = [
+  { value: 'acquisition', labelZh: '获客期', labelEn: 'Acquisition' },
+  { value: 'growth', labelZh: '成长期', labelEn: 'Growth' },
+  { value: 'mature', labelZh: '成熟期', labelEn: 'Mature' },
+  { value: 'declining', labelZh: '衰退期', labelEn: 'Declining' },
+  { value: 'recovery', labelZh: '挽回期', labelEn: 'Recovery' },
+];
 
 const categories = (lang: 'zh' | 'en') => {
   const t = translations[lang].factoryPage;
   return [
     { value: 'all', label: t.all },
-    { value: 'acquisition', label: lang === 'zh' ? '获客期' : 'Acquisition' },
-    { value: 'growth', label: lang === 'zh' ? '成长期' : 'Growth' },
-    { value: 'mature', label: lang === 'zh' ? '成熟期' : 'Mature' },
-    { value: 'declining', label: lang === 'zh' ? '衰退期' : 'Declining' },
-    { value: 'recovery', label: lang === 'zh' ? '挽回期' : 'Recovery' },
+    ...categoryOptions.map(c => ({ value: c.value, label: lang === 'zh' ? c.labelZh : c.labelEn })),
   ];
 };
 
@@ -50,8 +55,14 @@ export function FactoryPage() {
     mutationFn: createScenario,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scenarios'] });
-      setShowAIWizard(false);
+      setShowWizard(false);
+      setWizardMode('ai-input');
       setAiInput('');
+      setAiResult(null);
+      setAiErrors([]);
+      setManualTitle('');
+      setManualGoal('');
+      setManualCategory('growth');
     },
     onError: (err: any) => {
       setCreateError(err?.response?.data?.message || (language === 'zh' ? '创建失败' : 'Failed to create'));
@@ -72,8 +83,25 @@ export function FactoryPage() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAIWizard, setShowAIWizard] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardMode, setWizardMode] = useState<WizardMode>('ai-input');
   const [aiInput, setAiInput] = useState('');
+  const [aiResult, setAiResult] = useState<GeneratedFourStageScenario | null>(null);
+  const [aiErrors, setAiErrors] = useState<string[]>([]);
+  // Manual config form state
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualGoal, setManualGoal] = useState('');
+  const [manualCategory, setManualCategory] = useState<ScenarioCategory>('growth');
+  // Preview collapsibles (default all expanded)
+  const [previewOpen, setPreviewOpen] = useState<{ insight: boolean; segment: boolean; content: boolean; strategy: boolean }>({
+    insight: true, segment: true, content: true, strategy: true,
+  });
+
+  const openWizard = (mode: WizardMode = 'ai-input') => {
+    setWizardMode(mode);
+    setCreateError(null);
+    setShowWizard(true);
+  };
 
   const getIcon = (iconName?: string) => {
     switch (iconName) {
@@ -96,20 +124,58 @@ export function FactoryPage() {
   const handleAIGenerate = async () => {
     if (!aiInput.trim()) return;
     setCreateError(null);
+    setAiErrors([]);
     try {
       const res = await generateScenarioByAI(aiInput);
-      const data = res.data;
-      createMutation.mutate({
-        title: data.title || aiInput.substring(0, 30),
-        goal: data.goal || aiInput,
-        category: data.category || 'growth',
-        ...(data.icon ? { icon: data.icon } : {}),
-        ...(data.color ? { color: data.color } : {}),
-        ...(data.config ? { config: data.config } : {}),
-      });
+      const result = res.data;
+      if (!result.valid) {
+        // result is the { valid: false; errors: string[] } branch; cast helps the
+        // non-strict tsconfig narrow on discriminated unions.
+        setAiErrors((result as { valid: false; errors: string[] }).errors);
+        return;
+      }
+      setAiResult(result.scenario);
+      setWizardMode('ai-preview');
     } catch (e) {
-      setCreateError(language === 'zh' ? 'AI 生成失败，请稍后重试' : 'AI generation failed, please retry');
+      setAiErrors([language === 'zh' ? 'AI 生成失败，请稍后重试' : 'AI generation failed, please retry']);
     }
+  };
+
+  const handleRetryAI = () => {
+    setAiErrors([]);
+    handleAIGenerate();
+  };
+
+  const handleConfirmAI = () => {
+    if (!aiResult) return;
+    createMutation.mutate({
+      title: aiResult.title,
+      goal: aiResult.goal,
+      category: aiResult.category,
+      icon: aiResult.icon,
+      color: aiResult.color,
+      config: {
+        insightConfig: aiResult.insightConfig,
+        segmentConfig: aiResult.segmentConfig,
+        contentConfig: aiResult.contentConfig,
+        strategyConfig: aiResult.strategyConfig,
+      },
+    });
+  };
+
+  const handleManualCreate = () => {
+    if (!manualTitle.trim() || !manualGoal.trim()) {
+      setCreateError(language === 'zh' ? '请填写标题和目标' : 'Title and goal are required');
+      return;
+    }
+    setCreateError(null);
+    createMutation.mutate({
+      title: manualTitle.trim(),
+      goal: manualGoal.trim(),
+      category: manualCategory,
+      icon: 'Sparkles',
+      color: 'blue',
+    });
   };
 
   const handleMarketInspire = (action: string) => {
@@ -152,7 +218,7 @@ export function FactoryPage() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={() => setShowAIWizard(true)}
+            onClick={() => openWizard('ai-input')}
             className="text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800"
           >
             <Wand2 className="w-4 h-4 mr-1" />
@@ -160,7 +226,7 @@ export function FactoryPage() {
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700"
-            onClick={() => setShowAIWizard(true)}
+            onClick={() => openWizard('manual')}
           >
             <Plus className="w-4 h-4 mr-1" />
             {t.createScenario}
@@ -280,47 +346,239 @@ export function FactoryPage() {
         ))}
       </div>
 
-      <Dialog open={showAIWizard} onOpenChange={setShowAIWizard}>
-        <DialogContent className="max-w-xl">
+      <Dialog open={showWizard} onOpenChange={(open) => { if (!open) { setShowWizard(false); setCreateError(null); } }}>
+        <DialogContent className="max-w-2xl">
+          {/* Header */}
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{t.aiArchitect}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{t.aiArchitectDesc}</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {wizardMode === 'manual' ? t.manualTitle : t.aiArchitect}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {wizardMode === 'manual' ? t.manualDesc : t.aiArchitectDesc}
+                </p>
               </div>
             </div>
           </div>
-          <div className="space-y-4 pt-2">
-            <Textarea
-              value={aiInput}
-              onChange={(e) => setAiInput(e.target.value)}
-              placeholder={t.aiPlaceholder}
-              className="min-h-[120px]"
-            />
-            {createError && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950 rounded-xl px-3 py-2">{createError}</p>
-            )}
-            <Button
-              onClick={handleAIGenerate}
-              disabled={createMutation.isPending || !aiInput.trim()}
-              className="w-full bg-indigo-600 hover:bg-indigo-700"
-            >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {t.generating}
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4" />
-                  {t.generate}
-                </>
+
+          {/* AI Input view */}
+          {wizardMode === 'ai-input' && (
+            <div className="space-y-4 pt-2">
+              <Textarea
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                placeholder={t.aiPlaceholder}
+                className="min-h-[120px]"
+              />
+              {aiErrors.length > 0 && (
+                <div className="text-sm bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl px-3 py-2 space-y-1">
+                  <p className="font-semibold text-amber-800 dark:text-amber-300">{t.aiErrorTitle}</p>
+                  <ul className="list-disc list-inside text-amber-700 dark:text-amber-400 text-xs space-y-0.5">
+                    {aiErrors.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                  <p className="text-amber-600 dark:text-amber-400 text-xs pt-1">{t.aiErrorHint}</p>
+                </div>
               )}
-            </Button>
-          </div>
+              {createError && (
+                <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950 rounded-xl px-3 py-2">{createError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setWizardMode('manual')}
+                  className="flex-1"
+                >
+                  {t.switchToManual}
+                </Button>
+                {aiErrors.length > 0 ? (
+                  <Button
+                    onClick={handleRetryAI}
+                    disabled={createMutation.isPending || !aiInput.trim()}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    {createMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-4 h-4" />
+                    )}
+                    {t.retry}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleAIGenerate}
+                    disabled={createMutation.isPending || !aiInput.trim()}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    {createMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-4 h-4" />
+                    )}
+                    {t.generate}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* AI Preview view */}
+          {wizardMode === 'ai-preview' && aiResult && (
+            <div className="space-y-4 pt-2">
+              <div className="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-indigo-600">{aiResult.category}</Badge>
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100">{aiResult.title}</h4>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{aiResult.goal}</p>
+              </div>
+
+              <PreviewSection
+                icon={<UsersIcon className="w-4 h-4" />}
+                title={t.insightSection}
+                open={previewOpen.insight}
+                onToggle={() => setPreviewOpen(p => ({ ...p, insight: !p.insight }))}
+              >
+                <Field label={t.targetTags} value={aiResult.insightConfig.targetTags.join('、')} />
+                <Field label={t.analysisLogic} value={aiResult.insightConfig.analysisLogic} />
+              </PreviewSection>
+
+              <PreviewSection
+                icon={<Target className="w-4 h-4" />}
+                title={t.segmentSection}
+                open={previewOpen.segment}
+                onToggle={() => setPreviewOpen(p => ({ ...p, segment: !p.segment }))}
+              >
+                <Field label={t.criteria} value={aiResult.segmentConfig.criteria} />
+                <Field label={t.maxCount} value={String(aiResult.segmentConfig.maxCount)} />
+              </PreviewSection>
+
+              <PreviewSection
+                icon={<FileText className="w-4 h-4" />}
+                title={t.contentSection}
+                open={previewOpen.content}
+                onToggle={() => setPreviewOpen(p => ({ ...p, content: !p.content }))}
+              >
+                <Field label={t.style} value={aiResult.contentConfig.style} />
+                <Field label={t.channels} value={aiResult.contentConfig.channels.join('、')} />
+              </PreviewSection>
+
+              <PreviewSection
+                icon={<Route className="w-4 h-4" />}
+                title={t.strategySection}
+                open={previewOpen.strategy}
+                onToggle={() => setPreviewOpen(p => ({ ...p, strategy: !p.strategy }))}
+              >
+                <Field label={t.path} value={aiResult.strategyConfig.path} />
+              </PreviewSection>
+
+              {createError && (
+                <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950 rounded-xl px-3 py-2">{createError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { setWizardMode('ai-input'); setAiResult(null); }}
+                  className="flex-1"
+                  disabled={createMutation.isPending}
+                >
+                  {t.backToEdit}
+                </Button>
+                <Button
+                  onClick={handleConfirmAI}
+                  disabled={createMutation.isPending}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {createMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  {t.confirmSave}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Manual config view */}
+          {wizardMode === 'manual' && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1 block">Title</label>
+                <Input
+                  value={manualTitle}
+                  onChange={(e) => setManualTitle(e.target.value)}
+                  placeholder={language === 'zh' ? '场景名称' : 'Scenario title'}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1 block">Goal</label>
+                <Textarea
+                  value={manualGoal}
+                  onChange={(e) => setManualGoal(e.target.value)}
+                  placeholder={language === 'zh' ? '营销目标描述' : 'Marketing goal description'}
+                  className="min-h-[100px]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1 block">Category</label>
+                <Tabs value={manualCategory} onValueChange={(v) => setManualCategory(v as ScenarioCategory)}>
+                  <TabsList>
+                    {categoryOptions.map(c => (
+                      <TabsTrigger key={c.value} value={c.value}>
+                        {language === 'zh' ? c.labelZh : c.labelEn}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+              {createError && (
+                <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950 rounded-xl px-3 py-2">{createError}</p>
+              )}
+              <Button
+                onClick={handleManualCreate}
+                disabled={createMutation.isPending || !manualTitle.trim() || !manualGoal.trim()}
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+              >
+                {createMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                {t.manualSave}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function PreviewSection({ icon, title, open, onToggle, children }: { icon: React.ReactNode; title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      >
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold text-sm">
+          {icon}
+          {title}
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+      </button>
+      {open && <div className="p-4 space-y-3 bg-white dark:bg-slate-950">{children}</div>}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mb-1">{label}</div>
+      <div className="text-sm text-slate-700 dark:text-slate-200">{value}</div>
     </div>
   );
 }
