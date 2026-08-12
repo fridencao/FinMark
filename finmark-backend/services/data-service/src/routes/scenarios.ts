@@ -6,10 +6,11 @@ import { requireAuth } from '../middleware/auth.js';
 import { ValidationError, NotFoundError } from '../middleware/error.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import { validateFourStage, type FourStageScenario } from '../services/scenarioAI.js';
 
 /**
  * 解析 LLM 网关返回的纯文本（可能是裸 JSON 或被 Markdown 代码块包裹），
- * 提取出首个 JSON 对象。解析失败返回 null，由调用方走 fallback。
+ * 提取出首个 JSON 对象。解析失败返回 null，由调用方走 schema 校验失败路径。
  */
 function parseScenarioJSON(raw: string): Record<string, any> | null {
   if (!raw) return null;
@@ -24,23 +25,6 @@ function parseScenarioJSON(raw: string): Record<string, any> | null {
   } catch {
     return null;
   }
-}
-
-/** 当 LLM 网关不可用或解析失败时返回的兜底场景配置 */
-function fallbackScenario(description: string, language: 'zh' | 'en') {
-  return {
-    title: `AI Generated: ${description.slice(0, 20)}...`,
-    goal: description,
-    category: 'growth',
-    icon: 'Sparkles',
-    color: 'blue',
-    config: {
-      targetAudience: language === 'zh' ? '基于描述自动识别目标客群' : 'Auto-detected from description',
-      channels: ['短信', '企微', 'APP'],
-      content: description,
-      abTest: { enabled: false, variants: [] },
-    },
-  };
 }
 
 export const scenarioRouter: RouterType = Router();
@@ -168,55 +152,77 @@ scenarioRouter.post('/generate',
   body('description').isString().notEmpty(),
   body('language').optional().isIn(['zh', 'en']),
   async (req, res, next) => {
+    const { description, language = 'zh' } = req.body as { description: string; language?: 'zh' | 'en' };
+    const fail = (errors: string[], fallback: boolean) => res.json({
+      success: true,
+      data: { valid: false, fallback, errors },
+    });
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
-      const { description, language = 'zh' } = req.body as { description: string; language?: 'zh' | 'en' };
-      
+
       // Call LLM Gateway to generate scenario configuration
       const llmGatewayUrl = process.env.LLM_GATEWAY_URL || 'http://localhost:3002';
       const apiKey = process.env.LLM_API_KEY || 'dummy-key';
-      
+
       const systemPrompt = language === 'zh'
         ? '你是资深的金融营销场景设计专家。根据用户给出的营销需求，只返回一个严格合法的 JSON 对象（不要任何解释文字、不要 Markdown 代码块标记）。'
         : 'You are a senior financial marketing scenario designer. Based on the user requirement, return only a strict valid JSON object (no explanation, no Markdown code fences).';
 
-      const prompt = language === 'zh' 
-        ? `基于以下营销需求生成场景配置：
+      const prompt = language === 'zh'
+        ? `基于以下营销需求生成场景的四段配置：
           ${description}
-          
-          请返回 JSON 格式：
+
+          必须返回严格合法的 JSON（无任何解释、无 Markdown 包裹）:
           {
-            "title": "场景名称 (20 字以内)",
-            "goal": "详细的营销目标描述",
-            "category": "acquisition/growth/mature/declining/recovery 之一",
-            "icon": "Users/Zap/TrendingUp/ShieldCheck/Sparkles 之一",
-            "color": "blue/green/orange/red/purple 之一",
-            "config": {
-              "targetAudience": "目标客群描述",
-              "channels": ["短信", "企微", "APP", "微信", "电话"],
-              "content": "推荐的话术模板",
-              "abTest": { "enabled": boolean, "variants": [] }
+            "title": "场景名称（20 字以内）",
+            "goal": "详细营销目标描述",
+            "category": "acquisition|growth|mature|declining|recovery 之一",
+            "icon": "Users|Zap|TrendingUp|ShieldCheck|Sparkles 之一",
+            "color": "blue|green|orange|red|purple 之一",
+            "insightConfig": {
+              "targetTags": ["客群标签1", "客群标签2"],
+              "analysisLogic": "客户洞察的分析逻辑说明"
+            },
+            "segmentConfig": {
+              "criteria": "客群圈选条件描述",
+              "maxCount": 1000
+            },
+            "contentConfig": {
+              "style": "内容风格（亲切/专业/紧迫/温暖 等）",
+              "channels": ["短信", "企微", "APP", "微信", "电话"]
+            },
+            "strategyConfig": {
+              "path": "策略执行路径描述（如：触发 → 渠道 → 转化跟踪）"
             }
           }`
-        : `Generate scenario configuration based on the following marketing requirement:
+        : `Generate a four-stage scenario configuration based on the following marketing requirement:
           ${description}
-          
-          Return JSON format:
+
+          Return only a strict valid JSON (no explanation, no Markdown fences):
           {
             "title": "Scenario name (20 chars max)",
-            "goal": "Detailed marketing goal description",
-            "category": "acquisition/growth/mature/declining/recovery",
-            "icon": "Users/Zap/TrendingUp/ShieldCheck/Sparkles",
-            "color": "blue/green/orange/red/purple",
-            "config": {
-              "targetAudience": "Target audience description",
-              "channels": ["SMS", "WeChat Work", "APP", "WeChat", "Call"],
-              "content": "Recommended pitch template",
-              "abTest": { "enabled": boolean, "variants": [] }
+            "goal": "Detailed marketing goal",
+            "category": "acquisition|growth|mature|declining|recovery",
+            "icon": "Users|Zap|TrendingUp|ShieldCheck|Sparkles",
+            "color": "blue|green|orange|red|purple",
+            "insightConfig": {
+              "targetTags": ["tag1", "tag2"],
+              "analysisLogic": "Insight analysis logic"
+            },
+            "segmentConfig": {
+              "criteria": "Audience selection criteria",
+              "maxCount": 1000
+            },
+            "contentConfig": {
+              "style": "Content style (warm/professional/urgent/friendly)",
+              "channels": ["SMS", "WeChat Work", "APP", "WeChat", "Call"]
+            },
+            "strategyConfig": {
+              "path": "Strategy execution path (trigger → channel → conversion tracking)"
             }
           }`;
-      
+
       const llmResponse = await fetch(`${llmGatewayUrl}/v1/completions`, {
         method: 'POST',
         headers: {
@@ -230,13 +236,16 @@ scenarioRouter.post('/generate',
             { role: 'user', content: prompt },
           ],
           temperature: 0.7,
-          maxTokens: 1000,
+          maxTokens: 2000,
         }),
       });
 
       if (!llmResponse.ok) {
         console.error('[SCENARIO_GENERATE] LLM Gateway error:', llmResponse.status);
-        return res.json({ success: true, data: fallbackScenario(description, language) });
+        return fail(
+          [language === 'zh' ? `AI 网关返回 ${llmResponse.status}` : `AI gateway returned ${llmResponse.status}`],
+          true,
+        );
       }
 
       const llmData = await llmResponse.json() as { content?: string };
@@ -244,29 +253,28 @@ scenarioRouter.post('/generate',
 
       if (!generatedConfig) {
         console.error('[SCENARIO_GENERATE] Failed to parse LLM response as JSON');
-        return res.json({ success: true, data: fallbackScenario(description, language) });
+        return fail(
+          [language === 'zh' ? 'AI 返回结果无法解析为 JSON' : 'AI response is not valid JSON'],
+          false,
+        );
       }
 
-      // Merge AI generated config with fallback
-      const scenario = {
-        title: generatedConfig.title || `AI Generated: ${description.slice(0, 20)}...`,
-        goal: generatedConfig.goal || description,
-        category: generatedConfig.category || 'growth',
-        icon: generatedConfig.icon || 'Sparkles',
-        color: generatedConfig.color || 'blue',
-        config: generatedConfig.config || {
-          targetAudience: language === 'zh' ? '基于描述自动识别目标客群' : 'Auto-detected from description',
-          channels: ['短信', '企微', 'APP'],
-          content: description,
-          abTest: { enabled: false, variants: [] },
-        },
-      };
+      const validated = validateFourStage(generatedConfig);
+      if (!validated.valid) {
+        console.error('[SCENARIO_GENERATE] LLM output failed schema validation:', validated.errors);
+        return fail(validated.errors, false);
+      }
 
-      res.json({ success: true, data: scenario });
+      return res.json({
+        success: true,
+        data: { valid: true, scenario: validated.data satisfies FourStageScenario },
+      });
     } catch (err) {
       console.error('[SCENARIO_GENERATE] Error:', err);
-      const { description, language = 'zh' } = req.body as { description: string; language?: 'zh' | 'en' };
-      res.json({ success: true, data: fallbackScenario(description, language) });
+      return fail(
+        [language === 'zh' ? 'AI 服务暂不可用，请手动配置' : 'AI service unavailable, please configure manually'],
+        true,
+      );
     }
   }
 );
