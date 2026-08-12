@@ -7,6 +7,42 @@ import { ValidationError, NotFoundError } from '../middleware/error.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
+/**
+ * 解析 LLM 网关返回的纯文本（可能是裸 JSON 或被 Markdown 代码块包裹），
+ * 提取出首个 JSON 对象。解析失败返回 null，由调用方走 fallback。
+ */
+function parseScenarioJSON(raw: string): Record<string, any> | null {
+  if (!raw) return null;
+  let text = raw.trim();
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) text = fence[1].trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1)) as Record<string, any>;
+  } catch {
+    return null;
+  }
+}
+
+/** 当 LLM 网关不可用或解析失败时返回的兜底场景配置 */
+function fallbackScenario(description: string, language: 'zh' | 'en') {
+  return {
+    title: `AI Generated: ${description.slice(0, 20)}...`,
+    goal: description,
+    category: 'growth',
+    icon: 'Sparkles',
+    color: 'blue',
+    config: {
+      targetAudience: language === 'zh' ? '基于描述自动识别目标客群' : 'Auto-detected from description',
+      channels: ['短信', '企微', 'APP'],
+      content: description,
+      abTest: { enabled: false, variants: [] },
+    },
+  };
+}
+
 export const scenarioRouter: RouterType = Router();
 
 scenarioRouter.use(requireAuth);
@@ -141,6 +177,10 @@ scenarioRouter.post('/generate',
       const llmGatewayUrl = process.env.LLM_GATEWAY_URL || 'http://localhost:3002';
       const apiKey = process.env.LLM_API_KEY || 'dummy-key';
       
+      const systemPrompt = language === 'zh'
+        ? '你是资深的金融营销场景设计专家。根据用户给出的营销需求，只返回一个严格合法的 JSON 对象（不要任何解释文字、不要 Markdown 代码块标记）。'
+        : 'You are a senior financial marketing scenario designer. Based on the user requirement, return only a strict valid JSON object (no explanation, no Markdown code fences).';
+
       const prompt = language === 'zh' 
         ? `基于以下营销需求生成场景配置：
           ${description}
@@ -149,7 +189,7 @@ scenarioRouter.post('/generate',
           {
             "title": "场景名称 (20 字以内)",
             "goal": "详细的营销目标描述",
-            "category": "获客期/成长期/成熟期/衰退期/挽回期 之一",
+            "category": "acquisition/growth/mature/declining/recovery 之一",
             "icon": "Users/Zap/TrendingUp/ShieldCheck/Sparkles 之一",
             "color": "blue/green/orange/red/purple 之一",
             "config": {
@@ -177,7 +217,7 @@ scenarioRouter.post('/generate',
             }
           }`;
       
-      const llmResponse = await fetch(`${llmGatewayUrl}/api/generate`, {
+      const llmResponse = await fetch(`${llmGatewayUrl}/v1/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,36 +225,28 @@ scenarioRouter.post('/generate',
         },
         body: JSON.stringify({
           model: 'gemini-2.0-flash',
-          prompt: prompt,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
           temperature: 0.7,
-          max_tokens: 1000,
+          maxTokens: 1000,
         }),
       });
-      
+
       if (!llmResponse.ok) {
         console.error('[SCENARIO_GENERATE] LLM Gateway error:', llmResponse.status);
-        // Fallback to basic generation
-        return res.json({
-          success: true,
-          data: {
-            title: `AI Generated: ${description.slice(0, 20)}...`,
-            goal: description,
-            category: 'growth',
-            icon: 'Sparkles',
-            color: 'blue',
-            config: {
-              targetAudience: language === 'zh' ? '基于描述自动识别目标客群' : 'Auto-detected from description',
-              channels: ['短信', '企微', 'APP'],
-              content: description,
-              abTest: { enabled: false, variants: [] },
-            },
-          },
-        });
+        return res.json({ success: true, data: fallbackScenario(description, language) });
       }
-      
-      const llmData = await llmResponse.json() as Record<string, any>;
-      const generatedConfig = JSON.parse(llmData.data?.content || llmData.content || '{}');
-      
+
+      const llmData = await llmResponse.json() as { content?: string };
+      const generatedConfig = parseScenarioJSON(llmData.content || '');
+
+      if (!generatedConfig) {
+        console.error('[SCENARIO_GENERATE] Failed to parse LLM response as JSON');
+        return res.json({ success: true, data: fallbackScenario(description, language) });
+      }
+
       // Merge AI generated config with fallback
       const scenario = {
         title: generatedConfig.title || `AI Generated: ${description.slice(0, 20)}...`,
@@ -229,23 +261,12 @@ scenarioRouter.post('/generate',
           abTest: { enabled: false, variants: [] },
         },
       };
-      
+
       res.json({ success: true, data: scenario });
     } catch (err) {
       console.error('[SCENARIO_GENERATE] Error:', err);
-      // Fallback to basic generation
-      const { description } = req.body as { description: string };
-      res.json({
-        success: true,
-        data: {
-          title: `AI Generated: ${description.slice(0, 20)}...`,
-          goal: description,
-          category: 'growth',
-          icon: 'Sparkles',
-          color: 'blue',
-          config: {},
-        },
-      });
+      const { description, language = 'zh' } = req.body as { description: string; language?: 'zh' | 'en' };
+      res.json({ success: true, data: fallbackScenario(description, language) });
     }
   }
 );

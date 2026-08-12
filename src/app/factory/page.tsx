@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getScenarios, getDefaultScenarios, createScenario, deleteScenario, Scenario } from '@/services/scenario';
+import { getScenarios, getDefaultScenarios, createScenario, deleteScenario, generateScenarioByAI, Scenario } from '@/services/scenario';
 
 const categories = (lang: 'zh' | 'en') => {
   const t = translations[lang].factoryPage;
@@ -93,10 +93,23 @@ export function FactoryPage() {
     return matchCategory && matchSearch;
   });
 
-  const handleAIGenerate = () => {
+  const handleAIGenerate = async () => {
     if (!aiInput.trim()) return;
     setCreateError(null);
-    createMutation.mutate({ title: aiInput.substring(0, 30), goal: aiInput, category: 'growth' });
+    try {
+      const res = await generateScenarioByAI(aiInput);
+      const data = res.data;
+      createMutation.mutate({
+        title: data.title || aiInput.substring(0, 30),
+        goal: data.goal || aiInput,
+        category: data.category || 'growth',
+        ...(data.icon ? { icon: data.icon } : {}),
+        ...(data.color ? { color: data.color } : {}),
+        ...(data.config ? { config: data.config } : {}),
+      });
+    } catch (e) {
+      setCreateError(language === 'zh' ? 'AI 生成失败，请稍后重试' : 'AI generation failed, please retry');
+    }
   };
 
   const handleMarketInspire = (action: string) => {

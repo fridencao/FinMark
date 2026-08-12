@@ -25,6 +25,7 @@ export interface Scenario {
   isCustom?: boolean;
   complianceScore?: number;
   riskLevel?: string;
+  config?: any;
   createdAt: string;
   updatedAt: string;
 }
