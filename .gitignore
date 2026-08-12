@@ -7,3 +7,18 @@ coverage/
 .env*
 !.env.example
 .worktrees/
+
+# IDE / analysis tool caches
+.cache/
+.playwright-mcp/
+.sisyphus/
+.understand-anything/
+.workbuddy/
+
+# Defense: prevent stray lockfiles from mixed package-manager installs.
+# Frontend uses npm (root), backend uses pnpm (finmark-backend/).
+# If you see a pnpm-lock.yaml at repo root, someone ran `pnpm install` at the
+# frontend by mistake — delete it. If you see a package-lock.json under
+# finmark-backend/, someone ran `npm install` in a pnpm project — delete it.
+**/package-lock.json
+/pnpm-lock.yaml
