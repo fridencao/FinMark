@@ -11,6 +11,7 @@ model User {
   id        String     @id @default(uuid())
   username  String     @unique
   email     String     @unique
+  phone     String?    @unique
   password  String
   name      String
   role      UserRole   @default(operator)
