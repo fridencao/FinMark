@@ -116,6 +116,19 @@ services:
       - finmark-network
     restart: unless-stopped
 
+  bigdata-mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.bigdata-mock
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+    networks:
+      - finmark-network
+    restart: unless-stopped
+
 volumes:
   postgres-data:
 
