@@ -143,10 +143,27 @@ The provider is chosen at startup and fixed for the lifetime of the process. All
 1. **`npm run lint` = `tsc --noEmit`** — NOT ESLint. No ESLint/Prettier config found. Fix TS errors directly.
 2. **Vite proxy** in dev: `/api` → `http://localhost:3001`. The frontend expects the data-service at :3001.
 3. The frontend `.env.local` is NOT in .gitignore (only `.env*` is, except `.env.example`). Be careful about committing secrets.
-4. Backend uses `pnpm`, frontend uses `npm`. Two package managers.
+4. Backend uses `pnpm` (workspace at `finmark-backend/`), frontend uses `npm`. Two package managers, **never mix them** — root `pnpm-lock.yaml` and any `**/package-lock.json` are blocked by .gitignore precisely to prevent this drift.
 5. **i18n is manual** — a single `i18n.ts` with `translations.zh` and `translations.en`. No i18next or react-i18next.
 6. **Mock mode**: When `GEMINI_API_KEY` is not set, `geminiService.ts` falls back to static Chinese mock strings. For English output, set the key.
 7. Gemini model: `gemini-3-flash-preview` (frontend) / `gemini-2.5-flash` (llm-gateway docker default). These may differ — check before assuming.
 8. The `tsconfig.json` has `"paths": {"@/*": ["./src/*", "./*"]}` — the fallback `"./*"` allows importing from root. This is non-standard.
-9. `index.html` still shows the default title "My Google AI Studio App" — it hasn't been updated.
+9. **Vitest + jsdom + Node 22+** combo: `localStorage` is only on `window`, not on `globalThis`. `src/test/setup.ts` installs a Map-backed polyfill on both. If you delete that polyfill, **61 store tests fail with `Cannot read properties of undefined (reading 'clear')`**.
 10. Production build: `Dockerfile` at root, `docker-compose.prod.yml` at root. Deploy via `scripts/deploy-prod.sh`.
+11. **CI**: GitHub Actions at `.github/workflows/tests.yml` runs frontend + `data-service` tests on push and PR. Backend job uses a Postgres 16 service container; **service must be reachable on `localhost:5432` for tests to pass** (see the workflow env block).
+12. **DB migrations**: schema changes live in `finmark-backend/services/data-service/prisma/migrations/`. After `git pull` on a deployment, run `pnpm --filter data-service db:push` (or `migrate deploy`) to apply. Migrations added without running `db:push` will silently fail at runtime when the column is referenced.
+
+## Local smoke test (before pushing)
+
+```sh
+# Frontend
+npm run lint
+npm test -- --run
+
+# Backend
+cd finmark-backend/services/data-service
+npx tsc --noEmit
+npx vitest run
+```
+
+If both pass locally, CI should be green. If CI fails and local doesn't, check the workflow env block first (most common cause is missing `DATABASE_URL` or `JWT_SECRET`).
