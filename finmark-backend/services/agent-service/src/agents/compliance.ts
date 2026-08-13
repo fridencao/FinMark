@@ -8,6 +8,7 @@ export class ComplianceAgent extends BaseAgent {
       description: '合规审查智能体',
       systemPrompt: PROMPTS.compliance.system,
       temperature: 0.2,
+      agentType: 'compliance',
     });
   }
 

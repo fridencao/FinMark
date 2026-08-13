@@ -8,6 +8,7 @@ export class InsightAgent extends BaseAgent {
       description: '客户洞察智能体',
       systemPrompt: PROMPTS.insight.system,
       temperature: 0.4,
+      agentType: 'insight',
     });
   }
 

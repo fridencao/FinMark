@@ -6,6 +6,7 @@ import {
   MasterAgent, InsightAgent, SegmentAgent,
   ContentAgent, ComplianceAgent, StrategyAgent, AnalystAgent,
 } from './agents/index.js';
+import { prefetch as prefetchAgentConfigs } from './services/agentConfigClient.js';
 
 const app: Application = express();
 app.use(cors());
@@ -139,8 +140,13 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 const PORT = process.env.AGENT_PORT || 3003;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Agent Service running on http://localhost:${PORT}`);
+  // Pre-warm per-agent model cache from data-service; non-fatal if data-service
+  // is down at boot — calls will fall back to the hardcoded default model.
+  prefetchAgentConfigs().catch((err) => {
+    console.warn('[Agent Service] agent config prefetch failed:', err?.message);
+  });
 });
 
 export default app;

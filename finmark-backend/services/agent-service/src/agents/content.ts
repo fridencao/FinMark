@@ -8,6 +8,7 @@ export class ContentAgent extends BaseAgent {
       description: '营销文案智能体',
       systemPrompt: PROMPTS.content.system,
       temperature: 0.7,
+      agentType: 'content',
     });
   }
 

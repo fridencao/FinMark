@@ -8,6 +8,7 @@ export class AnalystAgent extends BaseAgent {
       description: '效果评估智能体',
       systemPrompt: PROMPTS.analyst.system,
       temperature: 0.3,
+      agentType: 'analyst',
     });
   }
 

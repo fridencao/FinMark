@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getModelFor, type AgentType } from '../services/agentConfigClient.js';
 
 const LLM_GATEWAY_URL = process.env.LLM_GATEWAY_URL || 'http://localhost:3002';
 
@@ -8,6 +9,8 @@ export interface AgentConfig {
   systemPrompt: string;
   temperature?: number;
   maxTokens?: number;
+  /** 持久化 agentType,启用 per-agent 模型绑定(查 data-service AgentConfig.modelId) */
+  agentType?: AgentType;
 }
 
 export interface AgentResult {
@@ -33,12 +36,28 @@ export abstract class BaseAgent {
     this.config.systemPrompt = prompt;
   }
 
+  /**
+   * 解析最终使用的 model:
+   *   1) 请求体显式 model(request-time override,优先级最高)
+   *   2) data-service AgentConfig.modelId(per-agent 持久化绑定)
+   *   3) hardcoded 'gemini-2.5-flash' 兜底
+   * 失败/不可达不抛错,降级到下一步。
+   */
+  private async resolveModel(requestModel?: string): Promise<string> {
+    if (requestModel && requestModel.length > 0) return requestModel;
+    if (this.config.agentType) {
+      const persisted = await getModelFor(this.config.agentType);
+      if (persisted) return persisted;
+    }
+    return 'gemini-2.5-flash';
+  }
+
   protected async callLLM(
     prompt: string,
     options: { stream?: boolean; temperature?: number; model?: string } = {}
   ): Promise<{ content: string; usage?: unknown }> {
     const temperature = options.temperature ?? this.config.temperature ?? 0.7;
-    const model = options.model || 'gemini-2.5-flash';
+    const model = await this.resolveModel(options.model);
 
     try {
       const response = await axios.post(`${LLM_GATEWAY_URL}/v1/completions`, {
@@ -66,7 +85,7 @@ export abstract class BaseAgent {
     prompt: string,
     options: { temperature?: number; model?: string } = {}
   ): AsyncGenerator<string> {
-    const model = options.model || 'gemini-2.5-flash';
+    const model = await this.resolveModel(options.model);
     const response = await axios.post(
       `${LLM_GATEWAY_URL}/v1/stream`,
       {

@@ -8,6 +8,7 @@ export class SegmentAgent extends BaseAgent {
       description: '客群筛选智能体',
       systemPrompt: PROMPTS.segment.system,
       temperature: 0.3,
+      agentType: 'segment',
     });
   }
 

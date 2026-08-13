@@ -8,6 +8,7 @@ export class StrategyAgent extends BaseAgent {
       description: '触达策略智能体',
       systemPrompt: PROMPTS.strategy.system,
       temperature: 0.5,
+      agentType: 'strategy',
     });
   }
 
