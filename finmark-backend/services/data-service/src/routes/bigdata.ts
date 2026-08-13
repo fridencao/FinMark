@@ -34,7 +34,8 @@ bigDataRouter.get(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
-      const days = Number(req.query.days) || 30;
+      const q = (req.query ?? {}) as Record<string, string | undefined>;
+      const days = Number(q.days) || 30;
       const data = await bigDataService.getCustomerBehavior(req.params!.id, days);
       res.json({ success: true, data });
     } catch (err) { next(err); }
