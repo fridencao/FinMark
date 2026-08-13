@@ -15,3 +15,4 @@ export { agentConfigRouter } from './agentConfigs.js';
 export { permissionRouter } from './permissions.js';
 export { benefitsRouter } from './benefits.js';
 export { channelsRouter } from './channels.js';
+export { bigDataRouter } from './bigdata.js';

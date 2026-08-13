@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Users, Database, GitBranch, FileText, Settings as SettingsIcon, Plus, ArrowRight, Trash2 } from 'lucide-react';
+import { Users, Database, GitBranch, FileText, Settings as SettingsIcon, Plus, ArrowRight, Trash2, Server } from 'lucide-react';
 import { useAppStore } from '@/stores/app';
 import { translations } from '@/i18n';
 import { getAudiencePreview } from '@/services/audience';
+import { getAudiencePreview as getBigDataAudiencePreview, searchSegmentCustomers, type AudiencePreviewResult, type SegmentCustomersResult } from '@/services/bigdata';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,10 @@ export function ExpertPage() {
   const [activeModule, setActiveModule] = useState('audience');
   const [audienceStats, setAudienceStats] = useState({ size: 8500, reachRate: 65, estimated: 5525 });
   const [isGenerating, setIsGenerating] = useState(false);
+  // bigdata 真实数据源:大 GraphQL 端点(行方)或本地 mock
+  const [bigDataPreview, setBigDataPreview] = useState<AudiencePreviewResult | null>(null);
+  const [bigDataSegment, setBigDataSegment] = useState<SegmentCustomersResult | null>(null);
+  const [bigDataError, setBigDataError] = useState<string | null>(null);
 
   interface ConditionRow {
     id: string;
@@ -56,6 +61,35 @@ export function ExpertPage() {
     onError: (err: unknown) => {
       console.error('Audience preview failed:', err);
       setAudienceStats({ size: 0, reachRate: 0, estimated: 0 });
+    },
+  });
+
+  /** P1-B 大数据预览:走 /api/bigdata/audience/preview,真实 GraphQL 数据 */
+  const bigDataPreviewMutation = useMutation({
+    mutationFn: (conds: ConditionRow[]) => getBigDataAudiencePreview(
+      conds.map((c) => ({ field: c.field, op: c.operator, value: c.value })),
+      10,
+    ),
+    onSuccess: (res) => {
+      setBigDataPreview(res.data.data);
+      setBigDataError(null);
+    },
+    onError: (err: unknown) => {
+      setBigDataError(err instanceof Error ? err.message : '大数据预览失败');
+      setBigDataPreview(null);
+    },
+  });
+
+  /** P1-B 分群客户查询:按分群 ID 拉样例客户(20 个) */
+  const segmentQueryMutation = useMutation({
+    mutationFn: (segmentId: string) => searchSegmentCustomers(segmentId),
+    onSuccess: (res) => {
+      setBigDataSegment(res.data.data);
+      setBigDataError(null);
+    },
+    onError: (err: unknown) => {
+      setBigDataError(err instanceof Error ? err.message : '分群查询失败');
+      setBigDataSegment(null);
     },
   });
 
@@ -212,6 +246,97 @@ export function ExpertPage() {
                 <div className="text-xs text-slate-500 mt-1">{t.estimatedReach}</div>
               </div>
             </div>
+          </div>
+
+          {/* P1-B: 大数据真实数据源(走 /api/bigdata/* 调 GraphQL) */}
+          <div className="mt-8 pt-8 border-t border-slate-100">
+            <div className="flex items-center gap-2 mb-4">
+              <Server className="w-5 h-5 text-indigo-600" />
+              <h4 className="font-bold text-slate-900 dark:text-slate-100">
+                {language === 'zh' ? '大数据真实数据源(GraphQL)' : 'Live bigdata source (GraphQL)'}
+              </h4>
+              <Badge variant="outline" className="text-xs">P1-B</Badge>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              {language === 'zh'
+                ? '走 data-service 的 /api/bigdata/* 路由,后端调用真实 GraphQL 端点(行方大数据或本地 mock)。'
+                : 'Routes through data-service /api/bigdata/* to a real GraphQL endpoint (prod or local mock).'}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <Button
+                onClick={() => bigDataPreviewMutation.mutate(conditions)}
+                disabled={bigDataPreviewMutation.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
+                {bigDataPreviewMutation.isPending
+                  ? (language === 'zh' ? '查询中...' : 'Querying...')
+                  : (language === 'zh' ? '调大数据预览' : 'Query bigdata preview')}
+              </Button>
+              <div className="flex items-center gap-2">
+                <Input
+                  className="w-32"
+                  placeholder="seg-vip"
+                  defaultValue="seg-vip"
+                  onKeyDown={(e) => { if (e.key === 'Enter') segmentQueryMutation.mutate((e.target as HTMLInputElement).value); }}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => segmentQueryMutation.mutate('seg-vip')}
+                  disabled={segmentQueryMutation.isPending}
+                >
+                  {segmentQueryMutation.isPending
+                    ? (language === 'zh' ? '查询中...' : 'Querying...')
+                    : (language === 'zh' ? '查分群客户' : 'Query segment')}
+                </Button>
+              </div>
+            </div>
+            {bigDataError && (
+              <div className="text-sm text-red-600 bg-red-50 dark:bg-red-950 rounded-xl px-3 py-2 mb-4">
+                {bigDataError}
+              </div>
+            )}
+            {bigDataPreview && (
+              <div className="bg-indigo-50/40 dark:bg-indigo-950/30 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-slate-500">{language === 'zh' ? '总客群数' : 'Total'}</div>
+                    <div className="text-xl font-bold text-indigo-600">{bigDataPreview.total.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">{language === 'zh' ? '样本数' : 'Sample'}</div>
+                    <div className="text-xl font-bold text-slate-700">{bigDataPreview.sample.length}</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-500">
+                  {language === 'zh' ? '样本前 5:' : 'Top 5 sample:'}
+                </div>
+                <div className="mt-1 space-y-1">
+                  {bigDataPreview.sample.slice(0, 5).map((row) => (
+                    <div key={row.id} className="text-xs flex justify-between bg-white/60 dark:bg-slate-900/60 rounded px-2 py-1">
+                      <span>{row.name} <span className="text-slate-400">({row.id})</span></span>
+                      <span className="text-slate-500">¥{row.asset.toLocaleString()} · {row.segment}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {bigDataSegment && (
+              <div className="bg-emerald-50/40 dark:bg-emerald-950/30 rounded-xl p-4">
+                <div className="text-sm">
+                  <span className="font-semibold">{language === 'zh' ? '分群' : 'Segment'}:</span>{' '}
+                  <code className="text-xs bg-white/60 dark:bg-slate-900/60 px-1.5 py-0.5 rounded">{bigDataSegment.total.toLocaleString()}</code>{' '}
+                  {language === 'zh' ? '个客户' : 'customers'} ({language === 'zh' ? '显示前' : 'showing first'} {bigDataSegment.customers.length})
+                </div>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {bigDataSegment.customers.slice(0, 6).map((row) => (
+                    <div key={row.id} className="text-xs bg-white/60 dark:bg-slate-900/60 rounded-lg p-2">
+                      <div className="font-semibold">{row.name} <span className="text-slate-400 font-normal">({row.id})</span></div>
+                      <div className="text-slate-500">¥{row.asset.toLocaleString()} · {row.segment}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       )}
