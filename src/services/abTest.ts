@@ -69,5 +69,34 @@ export const recordConversion = (id: string, data: {
   count?: number;
 }) => api.post(`/ab-tests/${id}/conversions`, data);
 
+export type ConversionSource =
+  | 'sms' | 'wechat' | 'app' | 'email' | 'phone'
+  | 'bigdata' | 'crm' | 'webhook' | 'manual';
+
+export interface IngestEventInput {
+  eventId?: string;
+  branchId: string;
+  source: ConversionSource;
+  customerId?: string;
+  channel?: string;
+  value?: number;
+}
+
+export interface IngestEventsResult {
+  total: number;
+  accepted: number;
+  deduped: number;
+  rejected: Array<{ index: number; eventId?: string; reason: string }>;
+  conversionsAdded: Record<string, number>;
+}
+
+/**
+ * 批量投递转化事件(模拟渠道/大数据 firehose 回推)。
+ * 用于演示 PRD 7.2 "渠道反馈→评估" 闭环;后台每天 5min 跑一次也可。
+ * eventId 存在则幂等,重复投递只算一次。
+ */
+export const ingestAbTestEvents = (id: string, events: IngestEventInput[]) =>
+  api.post<{ success: true; data: IngestEventsResult }>(`/ab-tests/${id}/events`, { events });
+
 export const getAbTestResults = (id: string) =>
   api.get(`/ab-tests/${id}/results`);
