@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Edit, Trash2, RefreshCw, Check, X, ExternalLink, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Database, Users, Shield, Bell, Info, Plus, Edit, Trash2, RefreshCw, Check, X, ExternalLink, Loader2, Bot } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, createUser, updateUser, deleteUser, getRoles, getPermissions, createRole, updateRole, deleteRole, type User, type Role, type Permission } from '@/services/user';
 import { useAppStore } from '@/stores/app';
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PermissionManager } from '@/components/settings/PermissionManager';
-import { getModels, createModel, updateModel, deleteModel, testModel, setDefaultModel, getIntegrations, connectIntegration, disconnectIntegration } from '@/services/settings';
+import { getModels, createModel, updateModel, deleteModel, testModel, setDefaultModel, getIntegrations, connectIntegration, disconnectIntegration, getAgentConfigs, updateAgentConfig, type AgentConfig as AgentConfigRow, type AgentType } from '@/services/settings';
 
 interface Integration {
   id: string;
@@ -67,6 +67,18 @@ export function SettingsPage() {
     mutationFn: createModel,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['models'] }); setModelDialogOpen(false); },
     onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '创建模型失败' : 'Failed to create model')),
+  });
+
+  // PRD 8.2: per-agent model binding — list + save
+  const { data: agentConfigsData, isLoading: agentConfigsLoading } = useQuery({
+    queryKey: ['agent-configs'],
+    queryFn: getAgentConfigs,
+  });
+  const updateAgentConfigMutation = useMutation({
+    mutationFn: ({ agentType, data }: { agentType: AgentType; data: { modelId?: string | null; prompt?: string; temperature?: number; maxTokens?: number; enabled?: boolean } }) =>
+      updateAgentConfig(agentType, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['agent-configs'] }); },
+    onError: (err: any) => setSettingsError(err?.response?.data?.message || (language === 'zh' ? '更新智能体失败' : 'Failed to update agent')),
   });
 
   const updateModelMutation = useMutation({
@@ -195,6 +207,10 @@ export function SettingsPage() {
           <TabsTrigger value="permission" className="gap-2 data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 rounded-none border-b-2 border-transparent">
             <Shield className="w-4 h-4" />
             {t.permission}
+          </TabsTrigger>
+          <TabsTrigger value="agents" className="gap-2 data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 rounded-none border-b-2 border-transparent">
+            <Bot className="w-4 h-4" />
+            {language === 'zh' ? '智能体' : 'Agents'}
           </TabsTrigger>
         </TabsList>
 
@@ -409,6 +425,11 @@ export function SettingsPage() {
             onDeleteRole={(id) => deleteRoleMutation.mutate(id)}
           />
         </TabsContent>
+
+        {/* PRD 8.2: per-agent model binding */}
+        <TabsContent value="agents" className="space-y-4">
+          <AgentConfigPanel models={models as any[]} />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={modelDialogOpen} onOpenChange={setModelDialogOpen}>
@@ -544,5 +565,95 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * PRD 8.2:per-agent model binding 面板
+ *
+ * 列 6 个默认智能体(insight/segment/content/compliance/strategy/analyst),
+ * 每个可独立选 modelId,落 AgentConfig 表;agent-service 启动时拉一次,
+ * 调用时按 agentType 查 modelId 覆盖 hardcoded 默认。
+ */
+function AgentConfigPanel({ models }: { models: Array<{ id: string; name: string; modelVersion?: string }> }) {
+  const { language } = useAppStore();
+  const { data, isLoading } = useQuery({ queryKey: ['agent-configs'], queryFn: getAgentConfigs });
+  const mutation = useMutation({
+    mutationFn: ({ agentType, modelId }: { agentType: AgentType; modelId: string | null }) =>
+      updateAgentConfig(agentType, { modelId }),
+    onSuccess: () => { /* queryClient handled in parent */ },
+  });
+  const configs: AgentConfigRow[] = (data?.data?.data as AgentConfigRow[]) || [];
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-slate-400">{language === 'zh' ? '加载中...' : 'Loading...'}</div>;
+  }
+
+  return (
+    <Card className="p-6 space-y-4">
+      <div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          {language === 'zh' ? '智能体模型绑定' : 'Per-Agent Model Binding'}
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">
+          {language === 'zh'
+            ? '为每个智能体独立选模型。agent-service 启动时拉一次,调用时按 agentType 查 modelId;不选走 hardcoded 默认。修改后需重启 agent-service 才生效。'
+            : 'Assign a model to each agent. agent-service caches on boot; restart to pick up changes. Unset falls back to the hardcoded default.'}
+        </p>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{language === 'zh' ? '智能体' : 'Agent'}</TableHead>
+            <TableHead>{language === 'zh' ? '当前模型' : 'Model'}</TableHead>
+            <TableHead className="text-right">{language === 'zh' ? '操作' : 'Action'}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {configs.map((cfg) => {
+            const current = models.find((m) => m.id === cfg.modelId);
+            return (
+              <TableRow key={cfg.agentType}>
+                <TableCell>
+                  <div className="font-medium">{cfg.name}</div>
+                  <div className="text-xs text-slate-400">{cfg.agentType}</div>
+                </TableCell>
+                <TableCell>
+                  {current ? (
+                    <span>
+                      <span className="font-medium">{current.name}</span>
+                      <span className="text-xs text-slate-400 ml-1">({current.modelVersion || current.id})</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 italic">
+                      {language === 'zh' ? '默认 (hardcoded)' : 'Default (hardcoded)'}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Select
+                      value={cfg.modelId || '__default__'}
+                      onValueChange={(v) => mutation.mutate({ agentType: cfg.agentType, modelId: v === '__default__' ? null : v })}
+                      disabled={mutation.isPending}
+                    >
+                      <SelectTrigger className="w-48 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">{language === 'zh' ? '使用默认' : 'Use default'}</SelectItem>
+                        {models.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

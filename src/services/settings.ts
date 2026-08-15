@@ -60,3 +60,23 @@ export const connectIntegration = (type: string) =>
 
 export const disconnectIntegration = (type: string) =>
   api.post(`/settings/integrations/${type}/disconnect`);
+
+// ---- Agent configs (PRD 8.2: per-agent model binding) ----
+
+export type AgentType = 'insight' | 'segment' | 'content' | 'compliance' | 'strategy' | 'analyst';
+
+export interface AgentConfig {
+  agentType: AgentType;
+  name: string;
+  prompt: string;
+  modelId?: string | null;
+  temperature?: number;
+  maxTokens?: number;
+  enabled: boolean;
+}
+
+export const getAgentConfigs = () =>
+  api.get<{ success: true; data: AgentConfig[] }>('/agents/configs');
+
+export const updateAgentConfig = (agentType: AgentType, data: Partial<AgentConfig>) =>
+  api.put<{ success: true; data: AgentConfig }>(`/agents/configs/${agentType}`, data);
