@@ -18,6 +18,7 @@ import {
 import {
   getAbTests, getAbTest, createAbTest, deleteAbTest,
   startAbTest, stopAbTest, recordConversion, getAbTestResults,
+  ingestAbTestEvents, type IngestEventInput, type IngestEventsResult, type ConversionSource,
   AbTest, AbTestResult
 } from '@/services/abTest';
 
@@ -45,6 +46,12 @@ export default function AbTestPage() {
   const [convDialogOpen, setConvDialogOpen] = useState(false);
   const [convBranchId, setConvBranchId] = useState('');
   const [convCount, setConvCount] = useState('1');
+  // P1-C: 批量事件触发(模拟 channel / bigdata firehose)
+  const [eventsDialogOpen, setEventsDialogOpen] = useState(false);
+  const [eventsBranchId, setEventsBranchId] = useState('');
+  const [eventsSource, setEventsSource] = useState<ConversionSource>('sms');
+  const [eventsCount, setEventsCount] = useState('20');
+  const [lastIngestResult, setLastIngestResult] = useState<IngestEventsResult | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -117,6 +124,23 @@ export default function AbTestPage() {
     },
   });
 
+  const eventsMutation = useMutation({
+    mutationFn: (input: { branchId: string; source: ConversionSource; count: number }) => {
+      // 每条事件带一个 eventId(确保跨批量幂等),channel 默认同 source
+      const events: IngestEventInput[] = Array.from({ length: input.count }, (_, i) => ({
+        eventId: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+        branchId: input.branchId,
+        source: input.source,
+        channel: input.source,
+      }));
+      return ingestAbTestEvents(detailId!, events);
+    },
+    onSuccess: (res) => {
+      if (detailId) qc.invalidateQueries({ queryKey: ['ab-test', detailId] });
+      setLastIngestResult(res.data.data);
+    },
+  });
+
   function resetCreateForm() {
     setCreateForm({
       name: '', description: '', type: 'content', metric: 'conversion_rate',
@@ -179,6 +203,9 @@ export default function AbTestPage() {
               <>
                 <Button size="sm" variant="outline" className="rounded-xl" onClick={() => { setConvBranchId(''); setConvDialogOpen(true); }}>
                   {t.recordConv}
+                </Button>
+                <Button size="sm" variant="outline" className="rounded-xl text-indigo-600 border-indigo-200" onClick={() => { setEventsBranchId(detail.branches[0]?.id || ''); setLastIngestResult(null); setEventsDialogOpen(true); }}>
+                  {language === 'zh' ? '批量触发' : 'Fire batch'}
                 </Button>
                 <Button size="sm" variant="destructive" className="rounded-xl" onClick={() => stopMutation.mutate(detail.id)}>
                   <Square className="w-4 h-4 mr-1" />{t.stop}
@@ -328,6 +355,104 @@ export default function AbTestPage() {
                 onClick={() => convMutation.mutate({ branchId: convBranchId, count: Number(convCount) || 1 })}
               >
                 {convMutation.isPending ? (language === 'zh' ? '提交中...' : 'Submitting...') : (language === 'zh' ? '提交' : 'Submit')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* P1-C: 批量事件触发(模拟渠道/大数据回推) */}
+        <Dialog open={eventsDialogOpen} onOpenChange={setEventsDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {language === 'zh' ? '批量触发转化事件' : 'Fire batch conversion events'}
+                <Badge variant="outline" className="text-xs">P1-C</Badge>
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-slate-500 -mt-2">
+              {language === 'zh'
+                ? '模拟 channel / bigdata firehose 一次性回推 N 条事件。eventId 全部带,跨批量幂等(可重复点不翻倍)。'
+                : 'Simulate a channel or bigdata firehose feeding N events. Each carries a unique eventId so re-firing is idempotent.'}
+            </p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t.branch}</Label>
+                  <Select value={eventsBranchId} onValueChange={setEventsBranchId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t.branch} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {detail.branches.map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{language === 'zh' ? '数据源' : 'Source'}</Label>
+                  <Select value={eventsSource} onValueChange={(v) => setEventsSource(v as ConversionSource)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(['sms','wechat','app','email','phone','bigdata','crm','webhook'] as ConversionSource[]).map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{language === 'zh' ? '事件数量' : 'Event count'}</Label>
+                <Input type="number" min="1" max="200" value={eventsCount} onChange={e => setEventsCount(e.target.value)} />
+              </div>
+              {lastIngestResult && (
+                <div className="bg-emerald-50/40 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl p-3 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">{language === 'zh' ? '总数' : 'Total'}</span>
+                    <span className="font-semibold">{lastIngestResult.total}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-emerald-700">{language === 'zh' ? '入账' : 'Accepted'}</span>
+                    <span className="font-semibold text-emerald-700">{lastIngestResult.accepted}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">{language === 'zh' ? '去重' : 'Deduped'}</span>
+                    <span className="font-semibold text-amber-700">{lastIngestResult.deduped}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-red-600">{language === 'zh' ? '拒绝' : 'Rejected'}</span>
+                    <span className="font-semibold text-red-600">{lastIngestResult.rejected.length}</span>
+                  </div>
+                  {Object.keys(lastIngestResult.conversionsAdded).length > 0 && (
+                    <div className="pt-2 border-t border-emerald-200 dark:border-emerald-900 text-xs">
+                      {Object.entries(lastIngestResult.conversionsAdded).map(([bid, n]) => (
+                        <span key={bid} className="mr-3">
+                          <code className="bg-white/60 dark:bg-slate-900/60 px-1.5 py-0.5 rounded">{bid}</code>: +{n}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEventsDialogOpen(false)}>
+                {language === 'zh' ? '关闭' : 'Close'}
+              </Button>
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700"
+                disabled={!eventsBranchId || eventsMutation.isPending}
+                onClick={() => eventsMutation.mutate({
+                  branchId: eventsBranchId,
+                  source: eventsSource,
+                  count: Math.min(200, Math.max(1, Number(eventsCount) || 1)),
+                })}
+              >
+                {eventsMutation.isPending
+                  ? (language === 'zh' ? '投递中...' : 'Firing...')
+                  : (language === 'zh' ? '触发事件' : 'Fire events')}
               </Button>
             </DialogFooter>
           </DialogContent>

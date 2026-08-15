@@ -4,6 +4,7 @@ import { body, param, validationResult } from 'express-validator';
 import { requireAuth } from '../middleware/auth.js';
 import { ValidationError, NotFoundError } from '../middleware/error.js';
 import * as abTestService from '../services/abTestService.js';
+import * as abTestEventService from '../services/abTestEventService.js';
 import { createAuditLog } from '../types/index.js';
 import type { AuthRequest } from '../middleware/auth.js';
 
@@ -149,6 +150,50 @@ abTestRouter.post(
       );
 
       res.json({ success: true, data: test });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+abTestRouter.post(
+  '/:id/events',
+  param('id').isUUID(),
+  body('events').isArray({ min: 1, max: 5000 }),
+  body('events.*.branchId').isString().notEmpty(),
+  body('events.*.source').isString().notEmpty(),
+  body('events.*.eventId').optional().isString(),
+  body('events.*.customerId').optional().isString(),
+  body('events.*.channel').optional().isString(),
+  body('events.*.value').optional().isFloat({ min: 0 }),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty())
+        throw new ValidationError(errors.array().map((e) => e.msg).join(', '));
+
+      const { events } = req.body as { events: Array<{
+        branchId: string;
+        source: string;
+        eventId?: string;
+        customerId?: string;
+        channel?: string;
+        value?: number;
+      }> };
+
+      const result = await abTestEventService.ingestEvents(
+        req.params!.id,
+        events.map((e) => ({
+          branchId: e.branchId,
+          source: e.source as Parameters<typeof abTestEventService.ingestEvents>[1][number]['source'],
+          ...(e.eventId !== undefined ? { eventId: e.eventId } : {}),
+          ...(e.customerId !== undefined ? { customerId: e.customerId } : {}),
+          ...(e.channel !== undefined ? { channel: e.channel } : {}),
+          ...(e.value !== undefined ? { value: e.value } : {}),
+        })),
+      );
+
+      res.json({ success: true, data: result });
     } catch (err) {
       next(err);
     }
